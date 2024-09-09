@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-// @ts-ignore
 import { Wallet } from "dig-sdk";
 
 export const setMnemonic = async (
