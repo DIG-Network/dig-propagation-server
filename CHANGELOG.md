@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## 1.0.0-alpha.2 (2024-09-09)
+
+
+### Features
+
+* migrate server to dedicated repo ([16b7a60](https://github.com/DIG-Network/dig-propagation-server/commit/16b7a6056d169bdccd4c39e276879fc274797cb7))
+
 ## [1.0.0](https://github.com/Datalayer-Storage/dig-cli/compare/v0.0.49...v1.0.0) (2024-09-06)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "dig-propagation-server",
-  "version": "1.0.0-alpha.1",
+  "version": "0.0.1-alpha.2",
   "description": "",
   "type": "commonjs",
   "main": "./dist/index.js",
@@ -35,6 +35,7 @@
     "@types/node": "^22.1.0",
     "copyfiles": "^2.4.1",
     "mocha": "^10.7.0",
+    "standard-version": "^9.5.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }
