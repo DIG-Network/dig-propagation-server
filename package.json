@@ -1,6 +1,6 @@
 {
   "name": "dig-propagation-server",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "",
   "type": "commonjs",
   "main": "./dist/index.js",
