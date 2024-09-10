@@ -6,7 +6,7 @@ import { HttpError } from "../utils/HttpError";
 import { generateNonce } from "../utils/nonce";
 
 // @ts-ignore
-import { DataStore, Wallet } from "dig-sdk";
+import { DataStore, Wallet } from "@dignetwork/dig-sdk";
 import { pipeline } from "stream";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";

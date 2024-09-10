@@ -9,7 +9,7 @@ import {
   NconfManager,
   ServerCoin
   // @ts-ignore
-} from "dig-sdk";
+} from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 
 const mutex = new Mutex();

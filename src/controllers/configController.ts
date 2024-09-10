@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Wallet } from "dig-sdk";
+import { Wallet } from "@dignetwork/dig-sdk";
 
 export const setMnemonic = async (
   req: Request,
