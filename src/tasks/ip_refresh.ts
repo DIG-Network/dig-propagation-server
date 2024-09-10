@@ -1,7 +1,7 @@
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 
 // @ts-ignore
-import { getPublicIpAddress, NconfManager } from "dig-sdk";
+import { getPublicIpAddress, NconfManager } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 
 const mutex = new Mutex();
