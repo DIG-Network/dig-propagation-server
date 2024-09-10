@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 
 // @ts-ignore
-import { DigNetwork } from "@dignetwork/dig-sdkdig-sdk";
+import { DigNetwork } from "@dignetwork/dig-sdk";
 import { getStorageLocation } from "../utils/storage";
 
 export const subscribeToStore = async (req: Request, res: Response): Promise<void> => {
