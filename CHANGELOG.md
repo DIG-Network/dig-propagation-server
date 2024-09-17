@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.9](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.8...v0.0.1-alpha.9) (2024-09-17)
+
+
+### Features
+
+* allow write access to writers without authorization ([36752be](https://github.com/DIG-Network/dig-propagation-server/commit/36752be952aa522a96b8efdc7ed2dad8e2ec45cf))
+
+### [0.0.1-alpha.8](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.7...v0.0.1-alpha.8) (2024-09-17)
+
+
+### Features
+
+* allow write access to writers without authorization ([15b298c](https://github.com/DIG-Network/dig-propagation-server/commit/15b298c68bb2f1894ea58f2a3e214fbe661d8ca5))
+
 ### [0.0.1-alpha.7](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.6...v0.0.1-alpha.7) (2024-09-16)
 
 ### [0.0.1-alpha.6](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.5...v0.0.1-alpha.6) (2024-09-10)
