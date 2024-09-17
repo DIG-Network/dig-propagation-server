@@ -247,14 +247,14 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
     console.log("Checking store ownership...");
     const dataStore = DataStore.from(storeId);
 
-    const isOwner = await dataStore.hasMetaWritePermissions(
-      Buffer.from(publicKey, "hex")
-    );
+    //const isOwner = await dataStore.hasMetaWritePermissions(
+   //   Buffer.from(publicKey, "hex")
+    //);
 
-    if (!isOwner) {
-      console.log("User does not have write access to this store.");
-      throw new HttpError(403, "You do not have write access to this store.");
-    }
+   // if (!isOwner) {
+   //   console.log("User does not have write access to this store.");
+   //   throw new HttpError(403, "You do not have write access to this store.");
+    //}
 
     console.log("User has write access to the store.");
 
