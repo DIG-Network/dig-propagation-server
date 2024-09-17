@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.10](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.9...v0.0.1-alpha.10) (2024-09-17)
+
+
+### Bug Fixes
+
+* ownership in propagation ([d00f374](https://github.com/DIG-Network/dig-propagation-server/commit/d00f374774a891f8264cbffcbe02149c6c7424ea))
+
 ### [0.0.1-alpha.9](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.8...v0.0.1-alpha.9) (2024-09-17)
 
 

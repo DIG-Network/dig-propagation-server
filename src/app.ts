@@ -44,7 +44,7 @@ const serverOptions = {
   cert: serverCert,
   ca: caCert,
   requestCert: true, // Require client certificate
-  rejectUnauthorized: true, // Reject unauthorized clients
+  rejectUnauthorized: false, // Reject unauthorized clients
 };
 
 // Create the HTTPS server
