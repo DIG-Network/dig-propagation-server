@@ -6,16 +6,10 @@ import { HttpError } from "../utils/HttpError";
 import { generateNonce } from "../utils/nonce";
 
 // @ts-ignore
-import {
-  DataStore,
-  Wallet,
-  hasMetadataWritePermissions,
-  getStoresList,
-} from "@dignetwork/dig-sdk";
+import { DataStore, Wallet, getStoresList } from "@dignetwork/dig-sdk";
 import { pipeline } from "stream";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
-import { get } from "http";
 
 const streamPipeline = promisify(pipeline);
 
@@ -251,8 +245,9 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
 
     // Check store ownership
     console.log("Checking store ownership...");
-    const isOwner = await hasMetadataWritePermissions(
-      Buffer.from(storeId, "hex"),
+    const dataStore = DataStore.from(storeId);
+
+    const isOwner = await dataStore.hasMetaWritePermissions(
       Buffer.from(publicKey, "hex")
     );
 
