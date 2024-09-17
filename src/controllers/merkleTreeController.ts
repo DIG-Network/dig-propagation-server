@@ -6,16 +6,25 @@ import { HttpError } from "../utils/HttpError";
 import { generateNonce } from "../utils/nonce";
 
 // @ts-ignore
-import { DataStore, Wallet } from "@dignetwork/dig-sdk";
+import {
+  DataStore,
+  Wallet,
+  hasMetadataWritePermissions,
+  getStoresList,
+} from "@dignetwork/dig-sdk";
 import { pipeline } from "stream";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
+import { get } from "http";
 
 const streamPipeline = promisify(pipeline);
 
 const digFolderPath = getStorageLocation();
 
-export const storeStatus = async (req: Request, res: Response): Promise<void> => {
+export const storeStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { storeId } = req.params;
 
@@ -35,25 +44,25 @@ export const storeStatus = async (req: Request, res: Response): Promise<void> =>
 
     res.status(statusCode).json({ error: errorMessage });
   }
-}
+};
 
 // Controller to handle HEAD requests for /stores/:storeId
 export const headStore = async (req: Request, res: Response): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization || "";
-    const [providedUsername, providedPassword] = Buffer.from(
-      authHeader.split(" ")[1],
-      "base64"
-    )
-      .toString("utf-8")
-      .split(":");
+    //  const authHeader = req.headers.authorization || "";
+    //  const [providedUsername, providedPassword] = Buffer.from(
+    //     authHeader.split(" ")[1],
+    //    "base64"
+    //  )
+    //     .toString("utf-8")
+    //    .split(":");
 
     const { username, password } = await getCredentials();
 
-    console.log("Provided credentials:", providedUsername, providedPassword);
-    if (providedUsername !== username || providedPassword !== password) {
-      throw new HttpError(401, "Unauthorized");
-    }
+    // console.log("Provided credentials:", providedUsername, providedPassword);
+    // if (providedUsername !== username || providedPassword !== password) {
+    //   throw new HttpError(401, "Unauthorized");
+    // }
 
     const userNonce = await generateNonce(username);
 
@@ -63,7 +72,12 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
       throw new HttpError(400, "Missing path parameters");
     }
 
-    const manifestPath = path.join(digFolderPath, "stores", storeId, "manifest.dat");
+    const manifestPath = path.join(
+      digFolderPath,
+      "stores",
+      storeId,
+      "manifest.dat"
+    );
 
     if (!fs.existsSync(manifestPath)) {
       res
@@ -125,7 +139,12 @@ export const getStore = async (req: Request, res: Response) => {
     }
 
     // Construct the full file path
-    const fullPath = path.join(digFolderPath, "stores", storeId, relativeFilePath);
+    const fullPath = path.join(
+      digFolderPath,
+      "stores",
+      storeId,
+      relativeFilePath
+    );
 
     // Check if the file exists
     if (!fs.existsSync(fullPath)) {
@@ -172,17 +191,27 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
 
     console.log("Authorization credentials extracted.");
 
-    const { username, password } = await getCredentials();
-
-    if (providedUsername !== username || providedPassword !== password) {
-      console.log("Provided credentials do not match stored credentials.");
-      throw new HttpError(401, "Unauthorized");
-    }
-
     const { storeId } = req.params;
     if (!storeId) {
       console.log("storeId is missing in the path parameters.");
       throw new HttpError(400, "Missing storeId in path parameters.");
+    }
+
+    const { username, password } = await getCredentials();
+
+    const storeList = getStoresList();
+
+    // If the store is already tracked by this peer, anyone that has write
+    // access to the store (checked further down) can upload updates without authorization since its
+    // essentially the same as if an upate was pull from another peer.
+    // You only need credentials to track new stores.
+
+    if (
+      !storeList.includes(storeId) &&
+      (providedUsername !== username || providedPassword !== password)
+    ) {
+      console.log("Provided credentials do not match stored credentials.");
+      throw new HttpError(401, "Unauthorized");
     }
 
     console.log(`storeId received: ${storeId}`);
@@ -198,7 +227,9 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
       throw new HttpError(400, "Missing required headers.");
     }
 
-    console.log(`Received headers: keyOwnershipSig=${keyOwnershipSig}, publicKey=${publicKey}, nonce=${nonce}, filename=${filename}`);
+    console.log(
+      `Received headers: keyOwnershipSig=${keyOwnershipSig}, publicKey=${publicKey}, nonce=${nonce}, filename=${filename}`
+    );
 
     let fileKey = path.join(filename);
 
@@ -219,16 +250,16 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
     console.log("Key ownership signature verified successfully.");
 
     // Check store ownership
-  //  console.log("Checking store ownership...");
-  //  const isOwner = await hasMetadataWritePermissions(
-  //    Buffer.from(storeId, "hex"),
-  //    Buffer.from(publicKey, "hex")
-  //  );
+    console.log("Checking store ownership...");
+    const isOwner = await hasMetadataWritePermissions(
+      Buffer.from(storeId, "hex"),
+      Buffer.from(publicKey, "hex")
+    );
 
-  //  if (!isOwner) {
-  //    console.log("User does not have write access to this store.");
-  //    throw new HttpError(403, "You do not have write access to this store.");
-  //  }
+    if (!isOwner) {
+      console.log("User does not have write access to this store.");
+      throw new HttpError(403, "You do not have write access to this store.");
+    }
 
     console.log("User has write access to the store.");
 
