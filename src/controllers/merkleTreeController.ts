@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Request, Response } from "express";
+import NodeCache from "node-cache";
 import { getCredentials } from "../utils/authUtils";
 import { HttpError } from "../utils/HttpError";
 import { generateNonce } from "../utils/nonce";
@@ -12,6 +13,12 @@ import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
 
 const streamPipeline = promisify(pipeline);
+
+// Create a cache instance with 1 minute TTL (time-to-live)
+const storeOwnerCache = new NodeCache({ stdTTL: 60 });
+const generateCacheKey = (publicKey: string, storeId: string): string => {
+  return `${publicKey}_${storeId}`;
+};
 
 const digFolderPath = getStorageLocation();
 
@@ -245,16 +252,27 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
 
     // Check store ownership
     console.log("Checking store ownership...");
-    const dataStore = DataStore.from(storeId);
 
-    //const isOwner = await dataStore.hasMetaWritePermissions(
-   //   Buffer.from(publicKey, "hex")
-    //);
+    const cacheKey = generateCacheKey(publicKey, storeId);
+    let isOwner = storeOwnerCache.get<boolean>(cacheKey);
 
-   // if (!isOwner) {
-   //   console.log("User does not have write access to this store.");
-   //   throw new HttpError(403, "You do not have write access to this store.");
-    //}
+    if (isOwner === undefined) {
+      // If not in cache, check ownership and cache the result
+      const dataStore = DataStore.from(storeId);
+      isOwner = await dataStore.hasMetaWritePermissions(
+        Buffer.from(publicKey, "hex")
+      );
+
+      // Cache the result for 1 minute (60 seconds)
+      storeOwnerCache.set(cacheKey, isOwner);
+    } else {
+      console.log("Using cached isOwner value for publicKey and storeId:", cacheKey);
+    }
+
+    if (!isOwner) {
+      console.log("User does not have write access to this store.");
+      throw new HttpError(403, "You do not have write access to this store.");
+    }
 
     console.log("User has write access to the store.");
 

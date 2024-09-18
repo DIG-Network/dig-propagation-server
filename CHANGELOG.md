@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.11](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.10...v0.0.1-alpha.11) (2024-09-18)
+
+
+### Features
+
+* add cache to store ownership check ([b54bc13](https://github.com/DIG-Network/dig-propagation-server/commit/b54bc13a988997261f185c07b2dcc427e64cae95))
+
 ### [0.0.1-alpha.10](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.9...v0.0.1-alpha.10) (2024-09-17)
 
 
