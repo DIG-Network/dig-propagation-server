@@ -267,6 +267,7 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
       storeOwnerCache.set(cacheKey, isOwner);
     } else {
       console.log("Using cached isOwner value for publicKey and storeId:", cacheKey);
+      storeOwnerCache.ttl(cacheKey, 60);
     }
 
     if (!isOwner) {
