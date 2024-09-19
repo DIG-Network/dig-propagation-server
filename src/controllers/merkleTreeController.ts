@@ -68,9 +68,24 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
     const userNonce = await generateNonce(username);
 
     const { storeId } = req.params;
+    const hasRootHash = req.query.hasRootHash as string;
 
     if (!storeId) {
       throw new HttpError(400, "Missing path parameters");
+    }
+
+    const dataStore = DataStore.from(storeId);
+
+    if (hasRootHash) {
+      const localRootHistory = await dataStore.getLocalRootHistory();
+      res.setHeader(
+        "X-Has-RootHash",
+        localRootHistory?.some(
+          (rootHistory) => rootHistory.root_hash === hasRootHash
+        )
+          ? "true"
+          : "false"
+      );
     }
 
     const manifestPath = path.join(
