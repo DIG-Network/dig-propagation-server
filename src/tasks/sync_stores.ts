@@ -1,14 +1,14 @@
 import fs from "fs";
+import path from 'path';
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 import {
   getStoresList,
-  getManifestFilePath,
   Wallet, 
   DataStore,
   DigNetwork,
   NconfManager,
-  ServerCoin
-  // @ts-ignore
+  ServerCoin,
+  STORE_PATH
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 
@@ -42,18 +42,22 @@ const isStoreUpToDate = async (storeId: string): Promise<boolean> => {
   const dataStore = await DataStore.from(storeId);
 
   const rootHistory = await dataStore.getRootHistory();
+  const storePath = path.join(STORE_PATH, storeId);
 
-  const manifestFilePath = getManifestFilePath(storeId);
-  if (!fs.existsSync(manifestFilePath)) {
-    console.log(`Manifest file not found for store ${storeId}.`);
+  if (!fs.existsSync(storePath)) {
+    console.log(`Store path not found for store ${storeId}.`);
     return false;
   }
 
-  const manifest = fs.readFileSync(manifestFilePath, "utf-8").trim();
-  const manifestRootHashes = manifest.split("\n");
+  // Get the count of .dat files in the store directory
+  const datFiles = fs.readdirSync(storePath).filter(file => file.endsWith(".dat") && !file.includes('manifest'));
+  const datFileCount = datFiles.length;
 
-  return rootHistory.length === manifestRootHashes.length;
+  console.log(`Root history count: ${rootHistory.length}, .dat files count: ${datFileCount}`);
+
+  return rootHistory.length === datFileCount;
 };
+
 
 const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   try {
