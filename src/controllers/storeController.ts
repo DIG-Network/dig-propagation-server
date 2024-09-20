@@ -26,7 +26,7 @@ export const subscribeToStore = async (req: Request, res: Response): Promise<voi
 
     // Create an instance of DigNetwork and pull files from the network
     const digNetwork = new DigNetwork(storeId);
-    await digNetwork.downloadFiles(false, true);
+    await digNetwork.downloadFiles();
 
     res.status(200).json({ message: `Subscribing to store ${storeId}` });
   } catch (error) {

@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import NodeCache from "node-cache";
 import { getCredentials } from "../utils/authUtils";
 import { HttpError } from "../utils/HttpError";
-import { generateNonce } from "../utils/nonce";
+import { generateNonce, validateNonce } from "../utils/nonce";
 
 // @ts-ignore
 import { DataStore, Wallet, getStoresList } from "@dignetwork/dig-sdk";
@@ -50,22 +50,13 @@ export const storeStatus = async (
 // Controller to handle HEAD requests for /stores/:storeId
 export const headStore = async (req: Request, res: Response): Promise<void> => {
   try {
-    //  const authHeader = req.headers.authorization || "";
-    //  const [providedUsername, providedPassword] = Buffer.from(
-    //     authHeader.split(" ")[1],
-    //    "base64"
-    //  )
-    //     .toString("utf-8")
-    //    .split(":");
+    const publicKey = req.headers["x-public-key"] as string;
 
-    const { username, password } = await getCredentials();
+    if (!publicKey) {
+      throw new HttpError(400, "Missing x-public-key header");
+    }
 
-    // console.log("Provided credentials:", providedUsername, providedPassword);
-    // if (providedUsername !== username || providedPassword !== password) {
-    //   throw new HttpError(401, "Unauthorized");
-    // }
-
-    const userNonce = await generateNonce(username);
+    const userNonce = await generateNonce(publicKey);
 
     const { storeId } = req.params;
     const hasRootHash = req.query.hasRootHash as string;
@@ -77,11 +68,12 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
     const dataStore = DataStore.from(storeId);
 
     if (hasRootHash) {
-      const localRootHistory = await dataStore.getLocalRootHistory();
+      const rootHistory = await dataStore.getRootHistory();
       res.setHeader(
         "X-Has-RootHash",
-        localRootHistory?.some(
-          (rootHistory) => rootHistory.root_hash === hasRootHash
+        rootHistory?.some(
+          // @ts-ignore
+          (history) => history.root_hash === hasRootHash && history.synced
         )
           ? "true"
           : "false"
@@ -251,6 +243,13 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
 
     // Verify key ownership signature
     console.log("Verifying key ownership signature...");
+    const validNonce = validateNonce(publicKey, nonce);
+
+    if (!validNonce) {
+      console.log("Invalid nonce.");
+      throw new HttpError(401, "Invalid nonce.");
+    }
+
     const wallet = await Wallet.load("default");
     const isSignatureValid = await wallet.verifyKeyOwnershipSignature(
       nonce,

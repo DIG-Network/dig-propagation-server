@@ -63,7 +63,7 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   try {
     console.log(`Attempting to sync store ${storeId} from the network...`);
     const digNetwork = new DigNetwork(storeId);
-    await digNetwork.downloadFiles(false, false);
+    await digNetwork.downloadFiles();
   } catch (error: any) {
     console.warn(
       `Initial sync attempt failed for ${storeId}: ${error.message}`
@@ -72,9 +72,6 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
       console.error(`No DIG Peers found for store ${storeId}. Skipping...`);
       return;
     }
-    console.log(`Retrying sync for store ${storeId} with forced download...`);
-    const digNetwork = new DigNetwork(storeId);
-    await digNetwork.downloadFiles(true, false);
   }
 };
 
