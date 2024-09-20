@@ -21,7 +21,6 @@ export const validateNonce = (userId: string, providedNonce: string): boolean =>
 
   // Check if the nonce matches and is not expired
   if (providedNonce === nonce && Date.now() < expires) {
-    // Optionally, delete the nonce after validation to prevent reuse
     delete nonceStore[userId];
     return true;
   }
