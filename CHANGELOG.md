@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.30](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.29...v0.0.1-alpha.30) (2024-09-21)
+
+
+### Features
+
+* fix head store ([6b76a34](https://github.com/DIG-Network/dig-propagation-server/commit/6b76a349ad8642bd18446dfe3f90c91f159761f4))
+
 ### [0.0.1-alpha.29](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.28...v0.0.1-alpha.29) (2024-09-21)
 
 
