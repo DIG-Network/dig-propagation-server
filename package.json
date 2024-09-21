@@ -12,6 +12,7 @@
     "build": "rm -rf dist && tsc && npm run postbuild",
     "postbuild": "copyfiles -u 1 \"src/**/*.crt\" \"src/**/*.key\" dist",
     "start": "ts-node src/index.ts",
+    "dev": "set DIG_USERNAME=1234 && set DIG_PASSWORD=1234 && ts-node src/index.ts",
     "server": "ts-node src/server.ts",
     "test": "mocha -r ts-node/register tests.ts",
     "prepare-release": "bash ./scripts/release.sh"

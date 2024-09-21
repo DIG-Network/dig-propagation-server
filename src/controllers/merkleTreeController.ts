@@ -52,21 +52,20 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log("Received request in headStore controller.");
 
-    const publicKey = req.headers["x-public-key"] as string;
-    console.log("Public Key:", publicKey);
+    // Extract the publicKey from query params if present (optional)
+    const publicKey = req.query.publicKey as string | undefined;
 
-    if (!publicKey) {
-      console.log("Missing x-public-key header.");
-      throw new HttpError(400, "Missing x-public-key header");
+    let userNonce: string | null = null;
+    if (publicKey) {
+      // Generate a nonce if a valid public key is provided
+      userNonce = await generateNonce(publicKey);
+      console.log("Generated User Nonce for publicKey:", userNonce);
     }
-
-    const userNonce = await generateNonce(publicKey);
-    console.log("Generated User Nonce:", userNonce);
 
     const { storeId } = req.params;
     console.log("Store ID:", storeId);
 
-    const hasRootHash = req.query.hasRootHash as string;
+    const hasRootHash = req.query.hasRootHash as string | undefined;
     console.log("Has Root Hash Query:", hasRootHash);
 
     if (!storeId) {
@@ -77,52 +76,39 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
     const dataStore = DataStore.from(storeId);
     console.log("Data Store initialized for Store ID:", storeId);
 
-    if (hasRootHash) {
-      const rootHistory = await dataStore.getRootHistory();
-      console.log("Root History:", rootHistory);
-
-      const hasRootHashInHistory = rootHistory?.some(
-        // @ts-ignore
-        (history) => history.root_hash === hasRootHash && history.synced
-      );
-      console.log(`Root hash ${hasRootHash} in history and synced:`, hasRootHashInHistory);
-
-      res.setHeader(
-        "X-Has-RootHash",
-        hasRootHashInHistory ? "true" : "false"
-      );
-    }
-
+    // Check if the store exists on this machine
     const storeList = getStoresList();
-    const hasStore = storeList.includes(storeId);
-    console.log("Store list:", storeList);
-    console.log("Has Store:", hasStore);
+    const storeExists = storeList.includes(storeId);
+    console.log(`Store exists on this machine: ${storeExists}`);
 
-    if (!hasStore) {
-      console.log("Store not found, setting headers and responding.");
-      res
-        .set({
-          "x-store-id": storeId,
-          "x-upload-type": "direct",
-          ...(userNonce && { "x-nonce": userNonce }),
-        })
-        .status(200)
-        .end();
-      return;
+    // Fetch root history and calculate the latest sync status
+    const rootHistory = await dataStore.getRootHistory();
+    console.log("Root History:", rootHistory);
+
+    const latestRootHash = rootHistory.length > 0 ? rootHistory[rootHistory.length - 1].root_hash : null;
+    let isSynced = false;
+
+    if (latestRootHash) {
+      // If hasRootHash is provided, compare it to the latest root hash
+      if (hasRootHash) {
+        const hasRootHashInHistory = rootHistory.some(
+          (history) => history.root_hash === hasRootHash && history.synced
+        );
+        console.log(`Root hash ${hasRootHash} in history and synced:`, hasRootHashInHistory);
+        res.setHeader("X-Has-RootHash", hasRootHashInHistory ? "true" : "false");
+      }
+
+      // Always check if the store is synced with the latest root hash
+      isSynced = rootHistory.some((history) => history.root_hash === latestRootHash && history.synced);
+      console.log(`Store is synced with latest root hash: ${isSynced}`);
     }
 
-    const rootHistory = await dataStore.getRootHistory();
-    const hashes = rootHistory.map((history) => history.root_hash);
-    const lastHash = hashes.length > 0 ? hashes[hashes.length - 1] : null;
-    console.log("Root Hashes:", hashes);
-    console.log("Last Hash:", lastHash);
-
+    // Response headers
     res
       .set({
         "x-store-id": storeId,
-        "x-generation-hash": lastHash || "",
-        "x-generation-index": hashes.length - 1,
-        "x-upload-type": "direct",
+        "x-store-exists": storeExists ? "true" : "false",
+        "x-synced": isSynced ? "true" : "false",
         ...(userNonce && { "x-nonce": userNonce }),
       })
       .status(200)
@@ -136,7 +122,6 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
     res.status(statusCode).json({ error: errorMessage });
   }
 };
-
 
 // Controller to handle GET requests for /stores/:storeId
 export const getStore = async (req: Request, res: Response) => {
