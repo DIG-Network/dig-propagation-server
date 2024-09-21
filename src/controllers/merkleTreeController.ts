@@ -50,44 +50,56 @@ export const storeStatus = async (
 // Controller to handle HEAD requests for /stores/:storeId
 export const headStore = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log("Received request in headStore controller.");
+
     const publicKey = req.headers["x-public-key"] as string;
+    console.log("Public Key:", publicKey);
 
     if (!publicKey) {
+      console.log("Missing x-public-key header.");
       throw new HttpError(400, "Missing x-public-key header");
     }
 
     const userNonce = await generateNonce(publicKey);
+    console.log("Generated User Nonce:", userNonce);
 
     const { storeId } = req.params;
+    console.log("Store ID:", storeId);
+
     const hasRootHash = req.query.hasRootHash as string;
+    console.log("Has Root Hash Query:", hasRootHash);
 
     if (!storeId) {
+      console.log("Missing path parameters.");
       throw new HttpError(400, "Missing path parameters");
     }
 
     const dataStore = DataStore.from(storeId);
+    console.log("Data Store initialized for Store ID:", storeId);
 
     if (hasRootHash) {
       const rootHistory = await dataStore.getRootHistory();
+      console.log("Root History:", rootHistory);
+
+      const hasRootHashInHistory = rootHistory?.some(
+        // @ts-ignore
+        (history) => history.root_hash === hasRootHash && history.synced
+      );
+      console.log(`Root hash ${hasRootHash} in history and synced:`, hasRootHashInHistory);
+
       res.setHeader(
         "X-Has-RootHash",
-        rootHistory?.some(
-          // @ts-ignore
-          (history) => history.root_hash === hasRootHash && history.synced
-        )
-          ? "true"
-          : "false"
+        hasRootHashInHistory ? "true" : "false"
       );
     }
 
-    const manifestPath = path.join(
-      digFolderPath,
-      "stores",
-      storeId,
-      "manifest.dat"
-    );
+    const storeList = getStoresList();
+    const hasStore = storeList.includes(storeId);
+    console.log("Store list:", storeList);
+    console.log("Has Store:", hasStore);
 
-    if (!fs.existsSync(manifestPath)) {
+    if (!hasStore) {
+      console.log("Store not found, setting headers and responding.");
       res
         .set({
           "x-store-id": storeId,
@@ -99,21 +111,11 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const manifestData = fs.readFileSync(manifestPath, "utf-8");
-    if (!manifestData) {
-      res
-        .set({
-          "x-store-id": storeId,
-          "x-upload-type": "direct",
-          ...(userNonce && { "x-nonce": userNonce }),
-        })
-        .status(200)
-        .end();
-      return;
-    }
-
-    const hashes = manifestData.split("\n").filter((line) => line.length > 0);
+    const rootHistory = await dataStore.getRootHistory();
+    const hashes = rootHistory.map((history) => history.root_hash);
     const lastHash = hashes.length > 0 ? hashes[hashes.length - 1] : null;
+    console.log("Root Hashes:", hashes);
+    console.log("Last Hash:", lastHash);
 
     res
       .set({
@@ -134,6 +136,7 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
     res.status(statusCode).json({ error: errorMessage });
   }
 };
+
 
 // Controller to handle GET requests for /stores/:storeId
 export const getStore = async (req: Request, res: Response) => {
