@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.29](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.28...v0.0.1-alpha.29) (2024-09-21)
+
+
+### Bug Fixes
+
+* head store controller ([2bad62b](https://github.com/DIG-Network/dig-propagation-server/commit/2bad62bb6be5711a1cb5aa1378d21a2c334c9956))
+
 ### [0.0.1-alpha.28](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.27...v0.0.1-alpha.28) (2024-09-20)
 
 ### [0.0.1-alpha.27](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.26...v0.0.1-alpha.27) (2024-09-20)
