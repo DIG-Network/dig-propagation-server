@@ -24,11 +24,11 @@ router.head("/:storeId", verifyMnemonic, headStore);
 // Start an upload session for a store
 router.post("/upload/:storeId", verifyMnemonic, startUploadSession);
 
-// Upload a file to a store's session (PUT /upload/{storeId}/{sessionId}/{filename})
-router.head("/upload/:storeId/:sessionId/:filename", generateFileNonce);
+// Upload a file to a store's session (HEAD /upload/{storeId}/{sessionId}/{filename})
+router.head("/upload/:storeId/:sessionId/*", generateFileNonce);
 
 // Upload a file to a store's session (PUT /upload/{storeId}/{sessionId}/{filename})
-router.put("/upload/:storeId/:sessionId/:filename", uploadFile);
+router.put("/upload/:storeId/:sessionId/*", uploadFile);
 
 // Commit an upload (POST /commit/{storeId}/{sessionId})
 router.post("/commit/:storeId/:sessionId", commitUpload);
