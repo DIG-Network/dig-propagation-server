@@ -212,17 +212,24 @@ export const startUploadSession = async (
       session.resetTtl(); // Reset TTL on each chunk of data
     });
 
-    const rootHash = req.query.rootHash as string;
-    if (!rootHash || !/^[a-fA-F0-9]{64}$/.test(rootHash)) {
-      throw new HttpError(400, "Invalid or missing rootHash.");
+    // Extract the file and its metadata from the FormData body
+    const contentDisposition = req.headers["content-disposition"] || "";
+    const matches = contentDisposition.match(/filename="(.+?)"/);
+    if (!matches) {
+      throw new HttpError(400, "Missing filename in the upload request.");
+    }
+    
+    const filename = matches[1];
+    if (!/^[a-fA-F0-9]{64}\.dat$/.test(filename)) {
+      throw new HttpError(400, "Invalid rootHash format in the filename.");
     }
 
-    // Create the file path for saving the uploaded .dat file
-    const tmpDatFilePath = path.join(session.tmpDir, `${rootHash}.dat`);
-    const fileStream = fs.createWriteStream(tmpDatFilePath);
+    const rootHash = filename.split(".")[0]; // Extract rootHash from the file name
+    const tmpDatFilePath = path.join(session.tmpDir, filename);
 
     // Stream the file from the request body into the temp file
-    await streamPipeline(req.pipe(passThrough), fileStream);
+    const fileWriteStream = fs.createWriteStream(tmpDatFilePath);
+    await streamPipeline(req.pipe(passThrough), fileWriteStream);
 
     // Now validate the file once it's saved
     await validateDataFile(tmpDatFilePath, storeId);
