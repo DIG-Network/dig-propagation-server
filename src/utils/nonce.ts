@@ -1,27 +1,34 @@
 import crypto from "crypto";
+import NodeCache from "node-cache";
 
-// In-memory storage for nonces
-const nonceStore: { [userId: string]: { nonce: string; expires: number } } = {};
+// Create a new NodeCache instance with a 5-minute TTL for nonces
+const nonceCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 60 }); // Check every minute for expired entries
 
-// Function to generate and store nonce
-export const generateNonce = (userId: string): string => {
+/**
+ * Function to generate and store nonce in NodeCache.
+ * @param {string} userId - Unique identifier for the user (or session).
+ * @returns {string} - The generated nonce.
+ */
+export const generateNonce = (nonceKey: string): string => {
   const nonce = crypto.randomBytes(16).toString("hex");
-  const expires = Date.now() + 5 * 60 * 1000; // 5 minutes expiration
 
-  nonceStore[userId] = { nonce, expires };
+  // Store the nonce in the cache with userId as the key
+  nonceCache.set(nonceKey, nonce);
+
   return nonce;
 };
 
-// Function to validate nonce
-export const validateNonce = (userId: string, providedNonce: string): boolean => {
-  const nonceData = nonceStore[userId];
-  if (!nonceData) return false;
+/**
+ * Function to validate the provided nonce.
+ * @param {string} userId - Unique identifier for the user (or session).
+ * @param {string} providedNonce - The nonce provided for validation.
+ * @returns {boolean} - True if the nonce is valid, otherwise false.
+ */
+export const validateNonce = (nonceKey: string, providedNonce: string): boolean => {
+  const cachedNonce = nonceCache.get<string>(nonceKey);
 
-  const { nonce, expires } = nonceData;
-
-  // Check if the nonce matches and is not expired
-  if (providedNonce === nonce && Date.now() < expires) {
-    delete nonceStore[userId];
+  if (cachedNonce && cachedNonce === providedNonce) {
+    nonceCache.del(nonceKey); // Delete nonce after successful validation
     return true;
   }
 

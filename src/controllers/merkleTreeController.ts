@@ -171,7 +171,10 @@ export const startUploadSession = async (
  * @param {Request} req - The request object.
  * @param {Response} res - The response object.
  */
-export const generateFileNonce = async (req: Request, res: Response): Promise<void> => {
+export const generateFileNonce = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { storeId, sessionId, filename } = req.params;
 
@@ -227,6 +230,10 @@ export const uploadFile = async (
       );
     }
 
+    if (validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
+      throw new HttpError(401, "Invalid nonce.");
+    }
+
     // Validate the key ownership signature using the nonce
     const wallet = await Wallet.load("default");
     const isSignatureValid = await wallet.verifyKeyOwnershipSignature(
@@ -234,10 +241,6 @@ export const uploadFile = async (
       keyOwnershipSig,
       publicKey
     );
-
-    if (validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
-      throw new HttpError(401, "Invalid nonce.");
-    }
 
     if (!isSignatureValid) {
       console.log("Key ownership signature is invalid.");
@@ -298,7 +301,10 @@ export const uploadFile = async (
  * @param {Request} req - The request object.
  * @param {Response} res - The response object.
  */
-export const commitUpload = async (req: Request, res: Response): Promise<void> => {
+export const commitUpload = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { storeId, sessionId } = req.params;
     const finalDir = path.join(digFolderPath, "stores", storeId);
@@ -317,7 +323,7 @@ export const commitUpload = async (req: Request, res: Response): Promise<void> =
     }
 
     // Move all files from the temporary session directory to the final store directory
-    fs.readdirSync(sessionUploadDir).forEach(file => {
+    fs.readdirSync(sessionUploadDir).forEach((file) => {
       const sourcePath = path.join(sessionUploadDir, file);
       const destinationPath = path.join(finalDir, file);
       fs.renameSync(sourcePath, destinationPath);
@@ -326,7 +332,11 @@ export const commitUpload = async (req: Request, res: Response): Promise<void> =
     // Clean up the session folder after committing
     cleanupSession(sessionId);
 
-    res.status(200).json({ message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.` });
+    res
+      .status(200)
+      .json({
+        message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.`,
+      });
   } catch (error: any) {
     console.error("Error committing upload:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -340,7 +350,10 @@ export const commitUpload = async (req: Request, res: Response): Promise<void> =
  * @param {Request} req - The request object.
  * @param {Response} res - The response object.
  */
-export const abortUpload = async (req: Request, res: Response): Promise<void> => {
+export const abortUpload = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { storeId, sessionId } = req.params;
 
@@ -354,7 +367,11 @@ export const abortUpload = async (req: Request, res: Response): Promise<void> =>
     fs.rmSync(session.tmpDir, { recursive: true, force: true });
     cleanupSession(sessionId);
 
-    res.status(200).json({ message: `Upload session ${sessionId} for DataStore ${storeId} aborted and cleaned up.` });
+    res
+      .status(200)
+      .json({
+        message: `Upload session ${sessionId} for DataStore ${storeId} aborted and cleaned up.`,
+      });
   } catch (error: any) {
     console.error("Error aborting upload session:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
