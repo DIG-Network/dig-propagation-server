@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.42](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.41...v0.0.1-alpha.42) (2024-09-22)
+
+
+### Features
+
+* add improved upload protocol ([187a3bb](https://github.com/DIG-Network/dig-propagation-server/commit/187a3bb7b00664267237086f98e386a6d9579297))
+* validate merkle tree as upload ([0525404](https://github.com/DIG-Network/dig-propagation-server/commit/0525404572dd3022c5363815d200d154f51c3a13))
+
 ### [0.0.1-alpha.41](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.40...v0.0.1-alpha.41) (2024-09-22)
 
 
