@@ -536,6 +536,7 @@ export const commitUpload = async (
       errorOnExist: false, // No error if file already exists
     });
 
+    // Regenerate the manifest file based on the upload
     const dataStore = new DataStore(storeId);
     await dataStore.generateManifestFile();
 
