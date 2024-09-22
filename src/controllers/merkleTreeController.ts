@@ -212,24 +212,17 @@ export const startUploadSession = async (
       session.resetTtl(); // Reset TTL on each chunk of data
     });
 
-    // Extract the file and its metadata from the FormData body
-    const contentDisposition = req.headers["content-disposition"] || "";
-    const matches = contentDisposition.match(/filename="(.+?)"/);
-    if (!matches) {
-      throw new HttpError(400, "Missing filename in the upload request.");
-    }
-    
-    const filename = matches[1];
-    if (!/^[a-fA-F0-9]{64}\.dat$/.test(filename)) {
-      throw new HttpError(400, "Invalid rootHash format in the filename.");
+    const rootHash = req.query.roothash as string;
+    if (!rootHash || !/^[a-fA-F0-9]{64}$/.test(rootHash)) {
+      throw new HttpError(400, "Invalid or missing rootHash.");
     }
 
-    const rootHash = filename.split(".")[0]; // Extract rootHash from the file name
-    const tmpDatFilePath = path.join(session.tmpDir, filename);
+    // Create the file path for saving the uploaded .dat file
+    const tmpDatFilePath = path.join(session.tmpDir, `${rootHash}.dat`);
+    const fileStream = fs.createWriteStream(tmpDatFilePath);
 
     // Stream the file from the request body into the temp file
-    const fileWriteStream = fs.createWriteStream(tmpDatFilePath);
-    await streamPipeline(req.pipe(passThrough), fileWriteStream);
+    await streamPipeline(req.pipe(passThrough), fileStream);
 
     // Now validate the file once it's saved
     await validateDataFile(tmpDatFilePath, storeId);
@@ -317,6 +310,7 @@ export const uploadFile = async (
     }
 
     // Validate the key ownership signature using the nonce
+
     const isSignatureValid = await Wallet.verifyKeyOwnershipSignature(
       nonce,
       keyOwnershipSig,
