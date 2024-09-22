@@ -536,6 +536,10 @@ export const commitUpload = async (
       errorOnExist: false, // No error if file already exists
     });
 
+    // Regenerate the manifest file based on the upload
+    const dataStore = new DataStore(storeId);
+    await dataStore.generateManifestFile();
+
     // Clean up the session folder after merging
     cleanupSession(sessionId);
 
@@ -571,6 +575,9 @@ export const abortUpload = async (
     // Clean up the session folder and remove it from the cache
     fs.rmSync(session.tmpDir, { recursive: true, force: true });
     cleanupSession(sessionId);
+
+    const dataStore = new DataStore(storeId);
+    await dataStore.generateManifestFile();
 
     res.status(200).json({
       message: `Upload session ${sessionId} for DataStore ${storeId} aborted and cleaned up.`,

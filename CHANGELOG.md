@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.45](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.44...v0.0.1-alpha.45) (2024-09-22)
+
+
+### Features
+
+* regen manifest file on upload ([db758ab](https://github.com/DIG-Network/dig-propagation-server/commit/db758abc1b221aa1fd01e4a331117d5bf44443c3))
+
+
+### Bug Fixes
+
+* manifest file ([79daa12](https://github.com/DIG-Network/dig-propagation-server/commit/79daa12d35619d6211db78860a27a7d0f7e3cf73))
+
 ### [0.0.1-alpha.44](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.43...v0.0.1-alpha.44) (2024-09-22)
 
 
