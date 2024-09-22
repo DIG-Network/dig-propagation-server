@@ -190,9 +190,7 @@ export const generateFileNonce = async (
 
     // Generate a nonce for the file
     const nonceKey = `${storeId}_${sessionId}_${filename}`;
-    console.log(`Generating nonce for file: ${nonceKey}`);
     const nonce = generateNonce(nonceKey);
-    console.log(`Nonce generated: ${nonce}`);
 
     // Set the nonce in the headers
     res.setHeader("x-nonce", nonce);
@@ -232,9 +230,6 @@ export const uploadFile = async (
         "Missing required headers: nonce, publicKey, or keyOwnershipSig."
       );
     }
-
-    const nonceKey = `${storeId}_${sessionId}_${filename}`;
-    console.log(`Validating nonce for file: ${nonceKey}`, nonce);
 
     if (!validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
       throw new HttpError(401, "Invalid nonce.");
