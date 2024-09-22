@@ -10,6 +10,7 @@ import { getStorageLocation } from "../utils/storage";
 import tmp from "tmp";
 import { PassThrough } from "stream";
 import NodeCache from "node-cache";
+import { generateNonce, validateNonce } from "../utils/nonce";
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -165,6 +166,43 @@ export const startUploadSession = async (
 };
 
 /**
+ * Handle the HEAD request for /upload/{storeId}/{sessionId}/{filename}
+ * Returns a nonce in the headers for file upload.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const generateFileNonce = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, sessionId, filename } = req.params;
+
+    if (!storeId || !sessionId || !filename) {
+      throw new HttpError(400, "Missing required parameters.");
+    }
+
+    // Construct the path for the upload session
+    const sessionPath = path.join(digFolderPath, "uploads", storeId, sessionId);
+
+    // Check if the session directory exists
+    if (!fs.existsSync(sessionPath)) {
+      throw new HttpError(404, "Upload session not found.");
+    }
+
+    // Generate a nonce for the file
+    const nonce = generateNonce(`${storeId}_${sessionId}_${filename}`);
+
+    // Set the nonce in the headers
+    res.setHeader("x-nonce", nonce);
+
+    // Return 200 status with no body, as per HEAD request specification
+    res.status(200).end();
+  } catch (error: any) {
+    console.error("Error generating nonce:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).end();
+  }
+};
+
+/**
  * Upload a file to a DataStore (PUT /upload/{storeId}/{sessionId}/{filename})
  * Each session has a unique session folder under the DataStore.
  * Each file has a nonce, key ownership signature, and public key that must be validated before upload.
@@ -198,6 +236,10 @@ export const uploadFile = async (
       keyOwnershipSig,
       publicKey
     );
+
+    if (validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
+      throw new HttpError(401, "Invalid nonce.");
+    }
 
     if (!isSignatureValid) {
       console.log("Key ownership signature is invalid.");

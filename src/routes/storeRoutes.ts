@@ -4,13 +4,13 @@ import {
   startUploadSession,
   uploadFile,
   commitUpload,
-  abortUpload
+  abortUpload,
+  generateFileNonce
 } from "../controllers/merkleTreeController";
 
 import { setMnemonic } from "../controllers/configController";
 import { verifyMnemonic } from "../middleware/verifyMnemonic";
 import { subscribeToStore, unsubscribeToStore } from "../controllers/storeController";
-
 
 const router = express.Router();
 
@@ -25,13 +25,16 @@ router.head("/:storeId", verifyMnemonic, headStore);
 router.post("/upload/:storeId", verifyMnemonic, startUploadSession);
 
 // Upload a file to a store's session (PUT /upload/{storeId}/{sessionId}/{filename})
-router.put("/upload/:storeId/:sessionId/:filename", verifyMnemonic, uploadFile);
+router.head("/upload/:storeId/:sessionId/:filename", generateFileNonce);
+
+// Upload a file to a store's session (PUT /upload/{storeId}/{sessionId}/{filename})
+router.put("/upload/:storeId/:sessionId/:filename", uploadFile);
 
 // Commit an upload (POST /commit/{storeId}/{sessionId})
-router.post("/commit/:storeId/:sessionId", verifyMnemonic, commitUpload);
+router.post("/commit/:storeId/:sessionId", commitUpload);
 
 // Abort an upload session (POST /abort/{storeId}/{sessionId})
-router.post("/abort/:storeId/:sessionId", verifyMnemonic, abortUpload);
+router.post("/abort/:storeId/:sessionId", abortUpload);
 
 
 export { router as storeRoutes };
