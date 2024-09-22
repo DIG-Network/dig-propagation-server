@@ -179,11 +179,9 @@ export const generateFileNonce = async (req: Request, res: Response): Promise<vo
       throw new HttpError(400, "Missing required parameters.");
     }
 
-    // Construct the path for the upload session
-    const sessionPath = path.join(digFolderPath, "uploads", storeId, sessionId);
-
-    // Check if the session directory exists
-    if (!fs.existsSync(sessionPath)) {
+    // Check if the session exists in the cache
+    const session = sessionCache[sessionId];
+    if (!session) {
       throw new HttpError(404, "Upload session not found.");
     }
 
