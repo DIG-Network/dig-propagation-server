@@ -63,7 +63,7 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   try {
     console.log(`Attempting to sync store ${storeId} from the network...`);
     const digNetwork = new DigNetwork(storeId);
-    await digNetwork.downloadFiles();
+    await digNetwork.syncStoreFromPeers();
   } catch (error: any) {
     console.warn(
       `Initial sync attempt failed for ${storeId}: ${error.message}`

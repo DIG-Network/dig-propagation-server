@@ -50,6 +50,7 @@ export const verifyCredentials = async (
 
     next(); // Proceed to the next middleware or route handler
   } catch (error) {
+    console.log(error)
     return res
       .status(500)
       .send("An error occurred while verifying the mnemonic.");
