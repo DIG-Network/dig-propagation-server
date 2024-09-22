@@ -4,13 +4,14 @@ import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { getCredentials } from "../utils/authUtils";
 import { HttpError } from "../utils/HttpError";
-import { DataStore, Wallet } from "@dignetwork/dig-sdk";
+import { DataStore, Wallet, DataIntegrityTree } from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
 import tmp from "tmp";
 import { PassThrough } from "stream";
 import NodeCache from "node-cache";
 import { generateNonce, validateNonce } from "../utils/nonce";
+import Busboy from "busboy";
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -23,6 +24,7 @@ const ownerCacheTTL = 3 * 60 * 1000; // Cache expiry for isOwner (3 minutes)
 const sessionCache: {
   [key: string]: {
     tmpDir: string;
+    roothash?: string;
     cleanup: () => void;
     timer: NodeJS.Timeout;
     resetTtl: () => void;
@@ -73,6 +75,42 @@ function cleanupSession(sessionId: string): void {
   }
 }
 
+async function merkleIntegrityCheck(
+  treePath: string,
+  tmpDir: string,
+  dataPath: string,
+  roothash: string
+): Promise<boolean> {
+  const rootHashContent = fs.readFileSync(treePath, "utf-8");
+  const tree = JSON.parse(rootHashContent);
+
+  // Extract expected sha256 from dataPath
+  const expectedSha256 = dataPath.replace("data", "").replace(/\//g, "");
+  console.log("expectedSha256", expectedSha256);
+
+  // Find the hexKey in the tree based on matching sha256
+  const hexKey = Object.keys(tree.files).find((key) => {
+    const fileData = tree.files[key] as { hash: string; sha256: string }; // Inline type definition
+    return fileData.sha256 === expectedSha256;
+  });
+
+  if (!hexKey) {
+    throw new Error(`No matching file found with sha256: ${expectedSha256}`);
+  }
+
+  // Validate the integrity with the foreign tree
+  const integrity = await DataIntegrityTree.validateKeyIntegrityWithForeignTree(
+    hexKey,
+    expectedSha256,
+    tree,
+    roothash,
+    path.join(tmpDir, "data")
+  );
+
+  console.log("Integrity check result:", integrity);
+  return integrity;
+}
+
 /**
  * Validates the .dat file by checking if the root hash in the file name
  * matches the root field in the file content and verifies that the root hash
@@ -97,6 +135,7 @@ export const validateDataFile = async (
 
     // Read the content of the .dat file
     const fileContent = fs.readFileSync(datFilePath, "utf-8");
+
     const parsedData = JSON.parse(fileContent);
 
     // Ensure that the "root" field exists in the file
@@ -106,7 +145,10 @@ export const validateDataFile = async (
 
     // Verify that the rootHash in the file name matches the "root" field in the file content
     if (parsedData.root !== rootHash) {
-      throw new HttpError(400, "The rootHash does not match the 'root' field in the file.");
+      throw new HttpError(
+        400,
+        "The rootHash does not match the 'root' field in the file."
+      );
     }
 
     // Initialize the DataStore and retrieve the root history
@@ -115,13 +157,21 @@ export const validateDataFile = async (
 
     // Check if the rootHash is in the store's root history
     if (!rootHistory.some((entry) => entry.root_hash === rootHash)) {
-      throw new HttpError(400, "The provided rootHash is not part of the store's root history.");
+      throw new HttpError(
+        400,
+        "The provided rootHash is not part of the store's root history."
+      );
     }
 
-    console.log(`.dat file for rootHash ${rootHash} has been successfully validated.`);
+    console.log(
+      `.dat file for rootHash ${rootHash} has been successfully validated.`
+    );
   } catch (error: any) {
     console.error("Error validating .dat file:", error);
-    throw new HttpError(400, error.message || "Failed to validate the .dat file.");
+    throw new HttpError(
+      400,
+      error.message || "Failed to validate the .dat file."
+    );
   }
 };
 
@@ -176,12 +226,12 @@ export const startUploadSession = async (
 ): Promise<void> => {
   try {
     const { storeId } = req.params;
-    const uploadPath = path.join(digFolderPath, "stores", storeId);
 
-    // Check if the DataStore directory already exists
+    // Check if the store directory exists
+    const uploadPath = path.join(digFolderPath, "stores", storeId);
     const storeExists = fs.existsSync(uploadPath);
 
-    // If the store does not exist, require authentication
+    // If the store doesn't exist, require authentication
     if (!storeExists) {
       const authHeader = req.headers.authorization || "";
       if (!authHeader.startsWith("Basic ")) {
@@ -194,7 +244,6 @@ export const startUploadSession = async (
       )
         .toString("utf-8")
         .split(":");
-
       const { username, password } = await getCredentials();
 
       if (providedUsername !== username || providedPassword !== password) {
@@ -202,35 +251,49 @@ export const startUploadSession = async (
       }
     }
 
-    // Create a session and a temp directory for storing the uploaded file
-    const sessionId = createSessionWithTTL(5 * 60 * 1000); // 5-minute TTL
-
-    // Use a PassThrough stream to monitor and reset TTL while streaming
-    const passThrough = new PassThrough();
+    // Create session and temp directory for uploaded file storage
+    const sessionId = createSessionWithTTL(5 * 60 * 1000); // 5 minutes TTL
     const session = sessionCache[sessionId];
-    passThrough.on("data", () => {
-      session.resetTtl(); // Reset TTL on each chunk of data
+
+    const bb = Busboy({ headers: req.headers });
+    let rootHash = "";
+
+    bb.on("file", async (name, file, info) => {
+      const { filename } = info;
+
+      // Extract the rootHash from the filename (assuming filename is the rootHash)
+      rootHash = path.basename(filename, ".dat");
+      session.roothash = rootHash;
+
+      if (!/^[a-fA-F0-9]{64}$/.test(rootHash)) {
+        return res.status(400).json({ error: "Invalid rootHash in filename." });
+      }
+
+      const tmpDatFilePath = path.join(session.tmpDir, `${rootHash}.dat`);
+      const fileStream = fs.createWriteStream(tmpDatFilePath);
+
+      file.pipe(fileStream);
+
+      fileStream.on("finish", async () => {
+        try {
+          // Validate the uploaded .dat file
+          await validateDataFile(tmpDatFilePath, storeId);
+          res.status(200).json({
+            message: `Upload session started for DataStore ${storeId}.`,
+            sessionId,
+          });
+        } catch (err: any) {
+          res.status(400).json({ error: err.message });
+        }
+      });
     });
 
-    const rootHash = req.query.roothash as string;
-    if (!rootHash || !/^[a-fA-F0-9]{64}$/.test(rootHash)) {
-      throw new HttpError(400, "Invalid or missing rootHash.");
-    }
-
-    // Create the file path for saving the uploaded .dat file
-    const tmpDatFilePath = path.join(session.tmpDir, `${rootHash}.dat`);
-    const fileStream = fs.createWriteStream(tmpDatFilePath);
-
-    // Stream the file from the request body into the temp file
-    await streamPipeline(req.pipe(passThrough), fileStream);
-
-    // Now validate the file once it's saved
-    await validateDataFile(tmpDatFilePath, storeId);
-
-    res.status(200).json({
-      message: `Upload session started for DataStore ${storeId}.`,
-      sessionId,
+    bb.on("error", (err: any) => {
+      console.error("Error with file upload:", err);
+      res.status(500).json({ error: "Error with file upload." });
     });
+
+    req.pipe(bb);
   } catch (error: any) {
     console.error("Error starting upload session:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -249,7 +312,8 @@ export const generateFileNonce = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { storeId, sessionId, filename } = req.params;
+    const { storeId, sessionId } = req.params;
+    const filename = req.params[0];
 
     if (!storeId || !sessionId || !filename) {
       throw new HttpError(400, "Missing required parameters.");
@@ -263,7 +327,6 @@ export const generateFileNonce = async (
 
     // Generate a nonce for the file
     const nonceKey = `${storeId}_${sessionId}_${filename}`;
-
     const nonce = generateNonce(nonceKey);
 
     // Set the nonce in the headers
@@ -291,7 +354,8 @@ export const uploadFile = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { storeId, sessionId, filename } = req.params;
+    const { storeId, sessionId } = req.params;
+    const filename = req.params[0];
 
     // Get nonce, publicKey, and keyOwnershipSig from the headers
     const keyOwnershipSig = req.headers["x-key-ownership-sig"] as string;
@@ -310,7 +374,6 @@ export const uploadFile = async (
     }
 
     // Validate the key ownership signature using the nonce
-
     const isSignatureValid = await Wallet.verifyKeyOwnershipSignature(
       nonce,
       keyOwnershipSig,
@@ -318,23 +381,19 @@ export const uploadFile = async (
     );
 
     if (!isSignatureValid) {
-      console.log("Key ownership signature is invalid.");
       throw new HttpError(401, "Invalid key ownership signature.");
     }
-
-    console.log("Key ownership signature verified successfully.");
 
     // Check if the user has write permissions to the store
     const cacheKey = `${publicKey}_${storeId}`;
     let isOwner = ownerCache.get<boolean>(cacheKey);
 
     if (isOwner === undefined) {
-      // If the value isn't in the cache, check the actual permissions
       const dataStore = DataStore.from(storeId);
       isOwner = await dataStore.hasMetaWritePermissions(
         Buffer.from(publicKey, "hex")
       );
-      ownerCache.set(cacheKey, isOwner); // Cache the result for future requests
+      ownerCache.set(cacheKey, isOwner);
     }
 
     if (!isOwner) {
@@ -347,22 +406,65 @@ export const uploadFile = async (
       throw new HttpError(404, "Session not found or expired.");
     }
 
-    // Reset the TTL periodically while streaming the file
-    const passThrough = new PassThrough();
-    passThrough.on("data", () => {
-      session.resetTtl(); // Reset the TTL on each chunk of data
-      ownerCache.ttl(cacheKey, ownerCacheTTL); // Extend cache TTL
+    // Use Busboy to handle file uploads
+    const bb = Busboy({ headers: req.headers });
+
+    bb.on("file", async (_fieldname, file, info) => {
+      // Reset TTL periodically while streaming the file
+      const passThrough = new PassThrough();
+      passThrough.on("data", () => {
+        session.resetTtl();
+        ownerCache.ttl(cacheKey, ownerCacheTTL); // Extend cache TTL
+      });
+
+      // Path where the file will be stored temporarily
+      const filePath = path.join(session.tmpDir, filename);
+
+      // Ensure the directory exists before writing the file
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      const fileStream = fs.createWriteStream(filePath);
+
+      // Stream the file to disk
+      await streamPipeline(file.pipe(passThrough), fileStream);
+
+      // Load the rootHash.dat file for this session
+      const rootHashDatPath = path.join(
+        session.tmpDir,
+        `${session.roothash}.dat`
+      );
+      if (!fs.existsSync(rootHashDatPath)) {
+        throw new HttpError(400, "rootHash.dat file is missing.");
+      }
+
+      if (filename.includes("data/")) {
+        if (
+          !(await merkleIntegrityCheck(
+            rootHashDatPath,
+            session.tmpDir,
+            filename,
+            session.roothash || ""
+          ))
+        ) {
+          throw new HttpError(400, "File integrity check failed");
+        }
+      }
+
+      // Confirm file upload
+      res.status(200).json({
+        message: `File ${filename} uploaded to DataStore ${storeId} under session ${sessionId}.`,
+      });
     });
 
-    // Proceed with file upload
-    const filePath = path.join(session.tmpDir, filename);
-    const fileStream = fs.createWriteStream(filePath);
-
-    await streamPipeline(req.pipe(passThrough), fileStream);
-
-    res.status(200).json({
-      message: `File ${filename} uploaded to DataStore ${storeId} under session ${sessionId}.`,
+    bb.on("error", (err) => {
+      console.error("Error handling file upload:", err);
+      res.status(500).json({ error: "File upload failed." });
     });
+
+    req.pipe(bb);
   } catch (error: any) {
     console.error("Error uploading file:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
