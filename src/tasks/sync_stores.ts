@@ -8,9 +8,11 @@ import {
   DigNetwork,
   NconfManager,
   ServerCoin,
-  STORE_PATH
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
+import { getStorageLocation } from "../utils/storage";
+
+const STORE_PATH = path.join(getStorageLocation(), "stores");
 
 const mutex = new Mutex();
 
