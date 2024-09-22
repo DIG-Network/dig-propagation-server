@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.38](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.37...v0.0.1-alpha.38) (2024-09-22)
+
+
+### Bug Fixes
+
+* nonce logic ([fa81130](https://github.com/DIG-Network/dig-propagation-server/commit/fa811304a287931b2e0c10e5eaf2333f3c8c37d7))
+* nonce logic ([339be3c](https://github.com/DIG-Network/dig-propagation-server/commit/339be3cd5c1f1c3cdd9efe59d56b39bd3d4150a8))
+
 ### [0.0.1-alpha.37](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.36...v0.0.1-alpha.37) (2024-09-22)
 
 
