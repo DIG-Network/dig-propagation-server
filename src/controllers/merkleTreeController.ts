@@ -1,243 +1,197 @@
 import fs from "fs";
 import path from "path";
 import { Request, Response } from "express";
-import NodeCache from "node-cache";
+import { v4 as uuidv4 } from "uuid";
 import { getCredentials } from "../utils/authUtils";
 import { HttpError } from "../utils/HttpError";
-import { generateNonce, validateNonce } from "../utils/nonce";
-
-// @ts-ignore
-import { DataStore, Wallet, getStoresList } from "@dignetwork/dig-sdk";
-import { pipeline } from "stream";
+import { DataStore, Wallet } from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
-
-const streamPipeline = promisify(pipeline);
-
-// Create a cache instance with 1 minute TTL (time-to-live)
-const storeOwnerCache = new NodeCache({ stdTTL: 60 });
-const generateCacheKey = (publicKey: string, storeId: string): string => {
-  return `${publicKey}_${storeId}`;
-};
+import tmp from "tmp";
+import { PassThrough } from "stream";
+import NodeCache from "node-cache";
 
 const digFolderPath = getStorageLocation();
+const streamPipeline = promisify(require("stream").pipeline);
 
-export const storeStatus = async (
+// Set the TTL for 5 minutes (in milliseconds)
+const sessionTTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const ownerCacheTTL = 3 * 60 * 1000; // Cache expiry for isOwner (3 minutes)
+
+// Cache for tracking session folders and owner permissions
+const sessionCache: {
+  [key: string]: {
+    tmpDir: string;
+    cleanup: () => void;
+    timer: NodeJS.Timeout;
+    resetTtl: () => void;
+  };
+} = {};
+const ownerCache = new NodeCache({ stdTTL: ownerCacheTTL });
+
+/**
+ * Creates a session directory with custom TTL logic. Each session has a TTL that can be reset
+ * when new files are uploaded to prevent early cleanup.
+ *
+ * @param {number} ttl - The TTL (Time-to-Live) in milliseconds before the session is cleaned up.
+ * @returns {string} sessionId - A unique session identifier.
+ */
+function createSessionWithTTL(ttl: number): string {
+  const tmpDirInfo = tmp.dirSync({ unsafeCleanup: true });
+  const sessionId = uuidv4();
+
+  const resetTtl = () => {
+    clearTimeout(sessionCache[sessionId]?.timer);
+    sessionCache[sessionId].timer = setTimeout(() => {
+      cleanupSession(sessionId);
+    }, ttl);
+  };
+
+  sessionCache[sessionId] = {
+    tmpDir: tmpDirInfo.name,
+    cleanup: tmpDirInfo.removeCallback,
+    timer: setTimeout(() => cleanupSession(sessionId), ttl),
+    resetTtl,
+  };
+
+  return sessionId;
+}
+
+/**
+ * Cleans up the session directory after the TTL expires or the upload is complete.
+ *
+ * @param {string} sessionId - The unique session ID to clean up.
+ */
+function cleanupSession(sessionId: string): void {
+  const session = sessionCache[sessionId];
+  if (session) {
+    session.cleanup(); // Remove the temporary directory
+    clearTimeout(session.timer); // Clear the timeout
+    delete sessionCache[sessionId]; // Remove the session from the cache
+    console.log(`Session ${sessionId} cleaned up.`);
+  }
+}
+
+/**
+ * Check if a store exists and optionally check if a root hash exists (HEAD /stores/{storeId})
+ * If the store exists, set headers indicating that the store and optionally the root hash exist.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const headStore = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const { hasRootHash } = req.query; // Extract optional query param hasRootHash
+
+    if (!storeId) {
+      throw new HttpError(400, "Missing storeId in the request.");
+    }
+
+    const storePath = path.join(digFolderPath, "stores", storeId);
+
+    // Check if the store exists
+    const storeExists = fs.existsSync(storePath);
+    res.setHeader("x-store-exists", storeExists ? "true" : "false");
+
+    // If the store exists and hasRootHash is provided, check for the root hash
+    if (storeExists && hasRootHash) {
+      const rootHashPath = path.join(storePath, `${hasRootHash}.dat`);
+
+      // Check if the file for the root hash exists in the store's directory
+      const rootHashExists = fs.existsSync(rootHashPath);
+      res.setHeader("x-has-root-hash", rootHashExists ? "true" : "false");
+    }
+
+    // End the response (since HEAD requests shouldn't have a body)
+    res.status(200).end();
+  } catch (error: any) {
+    console.error("Error checking store existence:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).end();
+  }
+};
+
+/**
+ * Start an upload session for a DataStore (POST /upload/{storeId})
+ * Creates a unique session folder under the DataStore for each upload session.
+ * Authentication is only required if the DataStore does not already exist.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const startUploadSession = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { storeId } = req.params;
+    const uploadPath = path.join(digFolderPath, "stores", storeId);
 
-    if (!storeId) {
-      throw new HttpError(400, "Missing storeId in path parameters.");
-    }
+    // Check if the DataStore directory already exists
+    const storeExists = fs.existsSync(uploadPath);
 
-    const dataStore = DataStore.from(storeId);
-    const synced = await dataStore.isSynced();
-
-    res.status(200).json({ synced });
-  } catch (error: any) {
-    console.error("Error in storeStatus controller:", error);
-
-    const statusCode = error instanceof HttpError ? error.statusCode : 500;
-    const errorMessage = error.message || "Failed to process request";
-
-    res.status(statusCode).json({ error: errorMessage });
-  }
-};
-
-// Controller to handle HEAD requests for /stores/:storeId
-export const headStore = async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log("Received request in headStore controller.");
-
-    // Extract the publicKey from query params if present (optional)
-    const publicKey = req.query.publicKey as string | undefined;
-
-    let userNonce: string | null = null;
-    if (publicKey) {
-      // Generate a nonce if a valid public key is provided
-      userNonce = await generateNonce(publicKey);
-      console.log("Generated User Nonce for publicKey:", userNonce);
-    }
-
-    const { storeId } = req.params;
-    console.log("Store ID:", storeId);
-
-    const hasRootHash = req.query.hasRootHash as string | undefined;
-    console.log("Has Root Hash Query:", hasRootHash);
-
-    if (!storeId) {
-      console.log("Missing path parameters.");
-      throw new HttpError(400, "Missing path parameters");
-    }
-
-    const dataStore = DataStore.from(storeId);
-    console.log("Data Store initialized for Store ID:", storeId);
-
-    // Check if the store exists on this machine
-    const storeList = getStoresList();
-    const storeExists = storeList.includes(storeId);
-    console.log(`Store exists on this machine: ${storeExists}`);
-
-    // Fetch root history and calculate the latest sync status
-    const rootHistory = await dataStore.getRootHistory();
-    console.log("Root History:", rootHistory);
-
-    const latestRootHash = rootHistory.length > 0 ? rootHistory[rootHistory.length - 1].root_hash : null;
-    let isSynced = false;
-
-    if (latestRootHash) {
-      // If hasRootHash is provided, compare it to the latest root hash
-      if (hasRootHash) {
-        const hasRootHashInHistory = rootHistory.some(
-          (history) => history.root_hash === hasRootHash && history.synced
-        );
-        console.log(`Root hash ${hasRootHash} in history and synced:`, hasRootHashInHistory);
-        res.setHeader("X-Has-RootHash", hasRootHashInHistory ? "true" : "false");
+    // If the store does not exist, require authentication
+    if (!storeExists) {
+      const authHeader = req.headers.authorization || "";
+      if (!authHeader.startsWith("Basic ")) {
+        throw new HttpError(401, "Unauthorized");
       }
 
-      // Always check if the store is synced with the latest root hash
-      isSynced = rootHistory.some((history) => history.root_hash === latestRootHash && history.synced);
-      console.log(`Store is synced with latest root hash: ${isSynced}`);
+      const [providedUsername, providedPassword] = Buffer.from(
+        authHeader.split(" ")[1],
+        "base64"
+      )
+        .toString("utf-8")
+        .split(":");
+
+      const { username, password } = await getCredentials();
+
+      if (providedUsername !== username || providedPassword !== password) {
+        throw new HttpError(401, "Unauthorized");
+      }
     }
 
-    // Response headers
-    res
-      .set({
-        "x-store-id": storeId,
-        "x-store-exists": storeExists ? "true" : "false",
-        "x-synced": isSynced ? "true" : "false",
-        ...(userNonce && { "x-nonce": userNonce }),
-      })
-      .status(200)
-      .end();
-  } catch (error: any) {
-    console.error("Error in headStore controller:", error);
+    // Create a unique subdirectory for this upload session with custom TTL
+    const sessionId = createSessionWithTTL(sessionTTL);
 
-    const statusCode = error instanceof HttpError ? error.statusCode : 500;
-    const errorMessage = error.message || "Failed to process request";
-
-    res.status(statusCode).json({ error: errorMessage });
-  }
-};
-
-// Controller to handle GET requests for /stores/:storeId
-export const getStore = async (req: Request, res: Response) => {
-  try {
-    const { storeId } = req.params;
-    const relativeFilePath = req.params[0]; // This will capture the rest of the path after the storeId
-
-    if (!storeId || !relativeFilePath) {
-      res.status(400).send("Missing storeId or file path.");
-      return;
-    }
-
-    // Construct the full file path
-    const fullPath = path.join(
-      digFolderPath,
-      "stores",
-      storeId,
-      relativeFilePath
-    );
-
-    // Check if the file exists
-    if (!fs.existsSync(fullPath)) {
-      res.status(404).send("File not found.");
-      return;
-    }
-
-    // Stream the file to the response
-    const fileStream = fs.createReadStream(fullPath);
-
-    // Handle errors during streaming
-    fileStream.on("error", (err) => {
-      console.error("Error streaming file:", err);
-      res.status(500).send("Error streaming file.");
+    res.status(200).json({
+      message: `Upload session started for DataStore ${storeId}.`,
+      sessionId,
     });
-
-    // Set content type to application/octet-stream for all files
-    res.setHeader("Content-Type", "application/octet-stream");
-
-    // Stream the file to the response
-    fileStream.pipe(res);
-  } catch (error) {
-    console.error("Error in getStore controller:", error);
-    res.status(500).send("Failed to process the request.");
+  } catch (error: any) {
+    console.error("Error starting upload session:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).json({ error: error.message });
   }
 };
 
-export const putStore = async (req: Request, res: Response): Promise<void> => {
+/**
+ * Upload a file to a DataStore (PUT /upload/{storeId}/{sessionId}/{filename})
+ * Each session has a unique session folder under the DataStore.
+ * Each file has a nonce, key ownership signature, and public key that must be validated before upload.
+ * Uploading a file continuously resets the session TTL during the upload.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const uploadFile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    console.log("Received file upload request.");
+    const { storeId, sessionId, filename } = req.params;
 
-    const authHeader = req.headers.authorization || "";
-    if (!authHeader.startsWith("Basic ")) {
-      console.log("Authorization header missing or incorrect format.");
-      throw new HttpError(401, "Unauthorized");
-    }
-
-    const [providedUsername, providedPassword] = Buffer.from(
-      authHeader.split(" ")[1],
-      "base64"
-    )
-      .toString("utf-8")
-      .split(":");
-
-    console.log("Authorization credentials extracted.");
-
-    const { storeId } = req.params;
-    if (!storeId) {
-      console.log("storeId is missing in the path parameters.");
-      throw new HttpError(400, "Missing storeId in path parameters.");
-    }
-
-    const { username, password } = await getCredentials();
-
-    const storeList = getStoresList();
-
-    // If the store is already tracked by this peer, anyone that has write
-    // access to the store (checked further down) can upload updates without authorization since its
-    // essentially the same as if an upate was pull from another peer.
-    // You only need credentials to track new stores.
-
-    if (
-      !storeList.includes(storeId) &&
-      (providedUsername !== username || providedPassword !== password)
-    ) {
-      console.log("Provided credentials do not match stored credentials.");
-      throw new HttpError(401, "Unauthorized");
-    }
-
-    console.log(`storeId received: ${storeId}`);
-
-    // These parameters are expected to be in the query or headers, not the body for a file upload
+    // Get nonce, publicKey, and keyOwnershipSig from the headers
     const keyOwnershipSig = req.headers["x-key-ownership-sig"] as string;
     const publicKey = req.headers["x-public-key"] as string;
     const nonce = req.headers["x-nonce"] as string;
-    const filename = decodeURIComponent(req.path);
 
-    if (!keyOwnershipSig || !publicKey || !nonce || !filename) {
-      console.log("One or more required headers are missing.");
-      throw new HttpError(400, "Missing required headers.");
+    if (!keyOwnershipSig || !publicKey || !nonce) {
+      throw new HttpError(
+        400,
+        "Missing required headers: nonce, publicKey, or keyOwnershipSig."
+      );
     }
 
-    console.log(
-      `Received headers: keyOwnershipSig=${keyOwnershipSig}, publicKey=${publicKey}, nonce=${nonce}, filename=${filename}`
-    );
-
-    let fileKey = path.join(filename);
-
-    // Verify key ownership signature
-    console.log("Verifying key ownership signature...");
-    const validNonce = validateNonce(publicKey, nonce);
-
-    if (!validNonce) {
-      console.log("Invalid nonce.");
-      throw new HttpError(401, "Invalid nonce.");
-    }
-
+    // Validate the key ownership signature using the nonce
     const wallet = await Wallet.load("default");
     const isSignatureValid = await wallet.verifyKeyOwnershipSignature(
       nonce,
@@ -252,56 +206,118 @@ export const putStore = async (req: Request, res: Response): Promise<void> => {
 
     console.log("Key ownership signature verified successfully.");
 
-    // Check store ownership
-    console.log("Checking store ownership...");
-
-    const cacheKey = generateCacheKey(publicKey, storeId);
-    let isOwner = storeOwnerCache.get<boolean>(cacheKey);
+    // Check if the user has write permissions to the store
+    const cacheKey = `${publicKey}_${storeId}`;
+    let isOwner = ownerCache.get<boolean>(cacheKey);
 
     if (isOwner === undefined) {
-      // If not in cache, check ownership and cache the result
+      // If the value isn't in the cache, check the actual permissions
       const dataStore = DataStore.from(storeId);
       isOwner = await dataStore.hasMetaWritePermissions(
         Buffer.from(publicKey, "hex")
       );
-
-      // Cache the result for 1 minute (60 seconds)
-      storeOwnerCache.set(cacheKey, isOwner);
-    } else {
-      console.log("Using cached isOwner value for publicKey and storeId:", cacheKey);
-      storeOwnerCache.ttl(cacheKey, 60);
+      ownerCache.set(cacheKey, isOwner); // Cache the result for future requests
     }
 
     if (!isOwner) {
-      console.log("User does not have write access to this store.");
       throw new HttpError(403, "You do not have write access to this store.");
     }
 
-    console.log("User has write access to the store.");
-
-    // Construct the full path where the file should be stored
-    const fullPath = path.join(digFolderPath, "stores", fileKey);
-    console.log("Saving file to:", fullPath);
-
-    // Ensure the directory exists
-    const directory = path.dirname(fullPath);
-    if (!fs.existsSync(directory)) {
-      console.log("Directory does not exist, creating:", directory);
-      fs.mkdirSync(directory, { recursive: true });
+    // Check if the session exists in the cache and reset the TTL if found
+    const session = sessionCache[sessionId];
+    if (!session) {
+      throw new HttpError(404, "Session not found or expired.");
     }
 
-    // Stream the file to the destination
-    console.log("Streaming file to destination...");
-    await streamPipeline(req, fs.createWriteStream(fullPath));
+    // Reset the TTL periodically while streaming the file
+    const passThrough = new PassThrough();
+    passThrough.on("data", () => {
+      session.resetTtl(); // Reset the TTL on each chunk of data
+      ownerCache.ttl(cacheKey, ownerCacheTTL); // Extend cache TTL
+    });
 
-    console.log("File uploaded successfully.");
-    res.status(200).json({ message: "File uploaded successfully." });
+    // Proceed with file upload
+    const filePath = path.join(session.tmpDir, filename);
+    const fileStream = fs.createWriteStream(filePath);
+
+    await streamPipeline(req.pipe(passThrough), fileStream);
+
+    res.status(200).json({
+      message: `File ${filename} uploaded to DataStore ${storeId} under session ${sessionId}.`,
+    });
   } catch (error: any) {
-    console.error("Error in putStore controller:", error);
-
+    console.error("Error uploading file:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
-    const errorMessage = error.message || "Failed to upload the file.";
+    res.status(statusCode).json({ error: error.message });
+  }
+};
 
-    res.status(statusCode).json({ error: errorMessage });
+/**
+ * Commit the upload for a DataStore (POST /commit/{storeId}/{sessionId})
+ * Moves files from the session's temporary upload folder to the store directory.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const commitUpload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, sessionId } = req.params;
+    const finalDir = path.join(digFolderPath, "stores", storeId);
+
+    // Retrieve the session information from the cache
+    const session = sessionCache[sessionId];
+    if (!session) {
+      throw new HttpError(404, "No upload session found or session expired.");
+    }
+
+    const sessionUploadDir = session.tmpDir;
+
+    // Ensure that the final store directory exists
+    if (!fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
+    }
+
+    // Move all files from the temporary session directory to the final store directory
+    fs.readdirSync(sessionUploadDir).forEach(file => {
+      const sourcePath = path.join(sessionUploadDir, file);
+      const destinationPath = path.join(finalDir, file);
+      fs.renameSync(sourcePath, destinationPath);
+    });
+
+    // Clean up the session folder after committing
+    cleanupSession(sessionId);
+
+    res.status(200).json({ message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.` });
+  } catch (error: any) {
+    console.error("Error committing upload:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).json({ error: error.message });
+  }
+};
+
+/**
+ * Abort the upload session for a DataStore (POST /abort/{storeId}/{sessionId})
+ * Deletes the session's temporary upload folder and its contents.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const abortUpload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, sessionId } = req.params;
+
+    // Retrieve the session information from the cache
+    const session = sessionCache[sessionId];
+    if (!session) {
+      throw new HttpError(404, "No upload session found or session expired.");
+    }
+
+    // Clean up the session folder and remove it from the cache
+    fs.rmSync(session.tmpDir, { recursive: true, force: true });
+    cleanupSession(sessionId);
+
+    res.status(200).json({ message: `Upload session ${sessionId} for DataStore ${storeId} aborted and cleaned up.` });
+  } catch (error: any) {
+    console.error("Error aborting upload session:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).json({ error: error.message });
   }
 };

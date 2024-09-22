@@ -1,9 +1,10 @@
 import express from "express";
 import {
   headStore,
-  getStore,
-  putStore,
-  storeStatus
+  startUploadSession,
+  uploadFile,
+  commitUpload,
+  abortUpload
 } from "../controllers/merkleTreeController";
 
 import { setMnemonic } from "../controllers/configController";
@@ -16,12 +17,21 @@ const router = express.Router();
 router.post("/unsubscribe", express.json(), unsubscribeToStore);
 router.post("/subscribe", express.json(), subscribeToStore);
 router.post("/mnemonic", express.json(), setMnemonic);
-router.get("/status/:storeId", storeStatus);
 
-// Route to handle HEAD, GET, and PUT requests for /stores/:storeId
+// Head request to check if a store exists
 router.head("/:storeId", verifyMnemonic, headStore);
-router.get("/:storeId/*", getStore);
-router.put("/:storeId/*", putStore);
+
+// Start an upload session for a store
+router.post("/upload/:storeId", verifyMnemonic, startUploadSession);
+
+// Upload a file to a store's session (PUT /upload/{storeId}/{sessionId}/{filename})
+router.put("/upload/:storeId/:sessionId/:filename", verifyMnemonic, uploadFile);
+
+// Commit an upload (POST /commit/{storeId}/{sessionId})
+router.post("/commit/:storeId/:sessionId", verifyMnemonic, commitUpload);
+
+// Abort an upload session (POST /abort/{storeId}/{sessionId})
+router.post("/abort/:storeId/:sessionId", verifyMnemonic, abortUpload);
 
 
 export { router as storeRoutes };
