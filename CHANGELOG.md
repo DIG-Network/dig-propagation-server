@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.43](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.42...v0.0.1-alpha.43) (2024-09-22)
+
+
+### Features
+
+* add improved upload protocol ([bfcbdbf](https://github.com/DIG-Network/dig-propagation-server/commit/bfcbdbf7d55470016fd9781998b37e0061560b9d))
+
 ### [0.0.1-alpha.42](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.41...v0.0.1-alpha.42) (2024-09-22)
 
 
