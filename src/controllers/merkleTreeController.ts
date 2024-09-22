@@ -12,6 +12,7 @@ import { PassThrough } from "stream";
 import NodeCache from "node-cache";
 import { generateNonce, validateNonce } from "../utils/nonce";
 import Busboy from "busboy";
+import fsExtra from "fs-extra";
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -36,10 +37,9 @@ const ownerCache = new NodeCache({ stdTTL: ownerCacheTTL });
  * Creates a session directory with custom TTL logic. Each session has a TTL that can be reset
  * when new files are uploaded to prevent early cleanup.
  *
- * @param {number} ttl - The TTL (Time-to-Live) in milliseconds before the session is cleaned up.
  * @returns {string} sessionId - A unique session identifier.
  */
-function createSessionWithTTL(ttl: number): string {
+function createSessionWithTTL(): string {
   const tmpDirInfo = tmp.dirSync({ unsafeCleanup: true });
   const sessionId = uuidv4();
 
@@ -47,13 +47,13 @@ function createSessionWithTTL(ttl: number): string {
     clearTimeout(sessionCache[sessionId]?.timer);
     sessionCache[sessionId].timer = setTimeout(() => {
       cleanupSession(sessionId);
-    }, ttl);
+    }, sessionTTL);
   };
 
   sessionCache[sessionId] = {
     tmpDir: tmpDirInfo.name,
     cleanup: tmpDirInfo.removeCallback,
-    timer: setTimeout(() => cleanupSession(sessionId), ttl),
+    timer: setTimeout(() => cleanupSession(sessionId), sessionTTL),
     resetTtl,
   };
 
@@ -151,9 +151,26 @@ export const validateDataFile = async (
       );
     }
 
-    // Initialize the DataStore and retrieve the root history
+    // Initialize the DataStore and retrieve the root history 
+    // but to represent this we use an empty hash 0000...0
     const dataStore = new DataStore(storeId);
     const rootHistory = await dataStore.getRootHistory();
+
+    // a tree with zero leaves does not have a root.
+    if (parsedData.leaves.length > 0) {
+      // Load the dat file into a merkle tree to recalculate the rootHash and 
+      // verify that the roothash presented belongs to the leaves of this tree.
+      const merkleTreeRoot = DataIntegrityTree.getRootOfForeignTree({
+        leaves: parsedData.leaves,
+      });
+      if (merkleTreeRoot !== rootHash) {
+        throw new HttpError(400, "Invalid Merkle Root");
+      }
+    } else {
+      if (parsedData.root !== "0000000000000000000000000000000000000000000000000000000000000000") {
+        throw new HttpError(400, "Invalid Merkle Root");
+      }
+    }
 
     // Check if the rootHash is in the store's root history
     if (!rootHistory.some((entry) => entry.root_hash === rootHash)) {
@@ -252,7 +269,7 @@ export const startUploadSession = async (
     }
 
     // Create session and temp directory for uploaded file storage
-    const sessionId = createSessionWithTTL(5 * 60 * 1000); // 5 minutes TTL
+    const sessionId = createSessionWithTTL(); // 5 minutes TTL
     const session = sessionCache[sessionId];
 
     const bb = Busboy({ headers: req.headers });
@@ -303,7 +320,7 @@ export const startUploadSession = async (
 
 /**
  * Handle the HEAD request for /upload/{storeId}/{sessionId}/{filename}
- * Returns a nonce in the headers for file upload.
+ * Returns a nonce in the headers for file upload, and checks if the file already exists.
  * @param {Request} req - The request object.
  * @param {Response} res - The response object.
  */
@@ -325,12 +342,21 @@ export const generateFileNonce = async (
       throw new HttpError(404, "Upload session not found.");
     }
 
-    // Generate a nonce for the file
-    const nonceKey = `${storeId}_${sessionId}_${filename}`;
-    const nonce = generateNonce(nonceKey);
+    // File path in the session's temporary directory
+    const tmpFilePath = path.join(session.tmpDir, filename);
+    const mainFilePath = path.join(digFolderPath, "stores", storeId, filename);
 
-    // Set the nonce in the headers
-    res.setHeader("x-nonce", nonce);
+    // Check if the file exists in either the tmp dir or the main store directory
+    const fileExists =
+      fs.existsSync(tmpFilePath) || fs.existsSync(mainFilePath);
+    res.setHeader("x-file-exists", fileExists ? "true" : "false");
+
+    // If file does not exist, generate a nonce for the file
+    if (!fileExists) {
+      const nonceKey = `${storeId}_${sessionId}_${filename}`;
+      const nonce = generateNonce(nonceKey);
+      res.setHeader("x-nonce", nonce);
+    }
 
     // Return 200 status with no body, as per HEAD request specification
     res.status(200).end();
@@ -449,6 +475,7 @@ export const uploadFile = async (
             session.roothash || ""
           ))
         ) {
+          cleanupSession(sessionId);
           throw new HttpError(400, "File integrity check failed");
         }
       }
@@ -474,7 +501,9 @@ export const uploadFile = async (
 
 /**
  * Commit the upload for a DataStore (POST /commit/{storeId}/{sessionId})
- * Moves files from the session's temporary upload folder to the store directory.
+ * Merges files from the session's temporary upload folder to the store directory.
+ * If a file already exists, it skips overwriting.
+ * Preserves directory structure during the merge.
  * @param {Request} req - The request object.
  * @param {Response} res - The response object.
  */
@@ -494,19 +523,18 @@ export const commitUpload = async (
 
     const sessionUploadDir = session.tmpDir;
 
-    // Ensure that the final store directory exists
+    // Ensure the destination store directory exists
     if (!fs.existsSync(finalDir)) {
       fs.mkdirSync(finalDir, { recursive: true });
     }
 
-    // Move all files from the temporary session directory to the final store directory
-    fs.readdirSync(sessionUploadDir).forEach((file) => {
-      const sourcePath = path.join(sessionUploadDir, file);
-      const destinationPath = path.join(finalDir, file);
-      fs.renameSync(sourcePath, destinationPath);
+    // Merge the session upload directory with the final directory
+    fsExtra.copySync(sessionUploadDir, finalDir, {
+      overwrite: false, // Prevents overwriting existing files
+      errorOnExist: false, // No error if file already exists
     });
 
-    // Clean up the session folder after committing
+    // Clean up the session folder after merging
     cleanupSession(sessionId);
 
     res.status(200).json({
