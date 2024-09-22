@@ -538,7 +538,7 @@ export const commitUpload = async (
 
     // Regenerate the manifest file based on the upload
     const dataStore = new DataStore(storeId);
-    await dataStore.generateManifestFile(path.join(digFolderPath, 'stores', storeId);
+    await dataStore.generateManifestFile(finalDir);
 
     // Clean up the session folder after merging
     cleanupSession(sessionId);
