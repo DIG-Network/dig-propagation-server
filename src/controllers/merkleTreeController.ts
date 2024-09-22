@@ -236,7 +236,7 @@ export const uploadFile = async (
     const nonceKey = `${storeId}_${sessionId}_${filename}`;
     console.log(`Validating nonce for file: ${nonceKey}`, nonce);
 
-    if (validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
+    if (!validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
       throw new HttpError(401, "Invalid nonce.");
     }
 
