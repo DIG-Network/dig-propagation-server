@@ -74,6 +74,58 @@ function cleanupSession(sessionId: string): void {
 }
 
 /**
+ * Validates the .dat file by checking if the root hash in the file name
+ * matches the root field in the file content and verifies that the root hash
+ * is part of the DataStore's root history.
+ *
+ * @param {string} datFilePath - Path to the .dat file being uploaded.
+ * @param {string} storeId - The ID of the DataStore.
+ * @throws {HttpError} - Throws an error if validation fails.
+ */
+export const validateDataFile = async (
+  datFilePath: string,
+  storeId: string
+): Promise<void> => {
+  try {
+    // Extract rootHash from the file name (e.g., <rootHash>.dat)
+    const rootHash = path.basename(datFilePath, ".dat");
+
+    // Ensure the file exists
+    if (!fs.existsSync(datFilePath)) {
+      throw new HttpError(400, "The .dat file does not exist.");
+    }
+
+    // Read the content of the .dat file
+    const fileContent = fs.readFileSync(datFilePath, "utf-8");
+    const parsedData = JSON.parse(fileContent);
+
+    // Ensure that the "root" field exists in the file
+    if (!parsedData.root) {
+      throw new HttpError(400, "The .dat file is missing the 'root' field.");
+    }
+
+    // Verify that the rootHash in the file name matches the "root" field in the file content
+    if (parsedData.root !== rootHash) {
+      throw new HttpError(400, "The rootHash does not match the 'root' field in the file.");
+    }
+
+    // Initialize the DataStore and retrieve the root history
+    const dataStore = new DataStore(storeId);
+    const rootHistory = await dataStore.getRootHistory();
+
+    // Check if the rootHash is in the store's root history
+    if (!rootHistory.some((entry) => entry.root_hash === rootHash)) {
+      throw new HttpError(400, "The provided rootHash is not part of the store's root history.");
+    }
+
+    console.log(`.dat file for rootHash ${rootHash} has been successfully validated.`);
+  } catch (error: any) {
+    console.error("Error validating .dat file:", error);
+    throw new HttpError(400, error.message || "Failed to validate the .dat file.");
+  }
+};
+
+/**
  * Check if a store exists and optionally check if a root hash exists (HEAD /stores/{storeId})
  * If the store exists, set headers indicating that the store and optionally the root hash exist.
  * @param {Request} req - The request object.
@@ -113,9 +165,8 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
 };
 
 /**
- * Start an upload session for a DataStore (POST /upload/{storeId})
- * Creates a unique session folder under the DataStore for each upload session.
- * Authentication is only required if the DataStore does not already exist.
+ * Start an upload session for a DataStore.
+ * The request body should include a .dat file with the rootHash name.
  * @param {Request} req - The request object.
  * @param {Response} res - The response object.
  */
@@ -151,8 +202,30 @@ export const startUploadSession = async (
       }
     }
 
-    // Create a unique subdirectory for this upload session with custom TTL
-    const sessionId = createSessionWithTTL(sessionTTL);
+    // Create a session and a temp directory for storing the uploaded file
+    const sessionId = createSessionWithTTL(5 * 60 * 1000); // 5-minute TTL
+
+    // Use a PassThrough stream to monitor and reset TTL while streaming
+    const passThrough = new PassThrough();
+    const session = sessionCache[sessionId];
+    passThrough.on("data", () => {
+      session.resetTtl(); // Reset TTL on each chunk of data
+    });
+
+    const rootHash = req.query.rootHash as string;
+    if (!rootHash || !/^[a-fA-F0-9]{64}$/.test(rootHash)) {
+      throw new HttpError(400, "Invalid or missing rootHash.");
+    }
+
+    // Create the file path for saving the uploaded .dat file
+    const tmpDatFilePath = path.join(session.tmpDir, `${rootHash}.dat`);
+    const fileStream = fs.createWriteStream(tmpDatFilePath);
+
+    // Stream the file from the request body into the temp file
+    await streamPipeline(req.pipe(passThrough), fileStream);
+
+    // Now validate the file once it's saved
+    await validateDataFile(tmpDatFilePath, storeId);
 
     res.status(200).json({
       message: `Upload session started for DataStore ${storeId}.`,
@@ -190,6 +263,7 @@ export const generateFileNonce = async (
 
     // Generate a nonce for the file
     const nonceKey = `${storeId}_${sessionId}_${filename}`;
+
     const nonce = generateNonce(nonceKey);
 
     // Set the nonce in the headers
@@ -236,8 +310,7 @@ export const uploadFile = async (
     }
 
     // Validate the key ownership signature using the nonce
-    const wallet = await Wallet.load("default");
-    const isSignatureValid = await wallet.verifyKeyOwnershipSignature(
+    const isSignatureValid = await Wallet.verifyKeyOwnershipSignature(
       nonce,
       keyOwnershipSig,
       publicKey
@@ -333,11 +406,9 @@ export const commitUpload = async (
     // Clean up the session folder after committing
     cleanupSession(sessionId);
 
-    res
-      .status(200)
-      .json({
-        message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.`,
-      });
+    res.status(200).json({
+      message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.`,
+    });
   } catch (error: any) {
     console.error("Error committing upload:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -368,11 +439,9 @@ export const abortUpload = async (
     fs.rmSync(session.tmpDir, { recursive: true, force: true });
     cleanupSession(sessionId);
 
-    res
-      .status(200)
-      .json({
-        message: `Upload session ${sessionId} for DataStore ${storeId} aborted and cleaned up.`,
-      });
+    res.status(200).json({
+      message: `Upload session ${sessionId} for DataStore ${storeId} aborted and cleaned up.`,
+    });
   } catch (error: any) {
     console.error("Error aborting upload session:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
