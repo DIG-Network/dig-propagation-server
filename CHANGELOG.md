@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.34](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.33...v0.0.1-alpha.34) (2024-09-22)
+
+
+### Bug Fixes
+
+* add missing head file upload ([a56a316](https://github.com/DIG-Network/dig-propagation-server/commit/a56a316690af719c7714bc4fd340a64a4837edce))
+
 ### [0.0.1-alpha.33](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.32...v0.0.1-alpha.33) (2024-09-22)
 
 ### [0.0.1-alpha.32](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.31...v0.0.1-alpha.32) (2024-09-22)
