@@ -153,7 +153,7 @@ export const validateDataFile = async (
 
     // Initialize the DataStore and retrieve the root history 
     // but to represent this we use an empty hash 0000...0
-    const dataStore = new DataStore(storeId);
+    const dataStore = DataStore.from(storeId);
     const rootHistory = await dataStore.getRootHistory();
 
     // a tree with zero leaves does not have a root.
@@ -537,8 +537,11 @@ export const commitUpload = async (
     });
 
     // Regenerate the manifest file based on the upload
-    const dataStore = new DataStore(storeId);
-    await dataStore.generateManifestFile(finalDir);
+    const dataStore = DataStore.from(storeId);
+    setTimeout(async () => {
+      await dataStore.generateManifestFile(finalDir);
+    }, 0);
+    
 
     // Clean up the session folder after merging
     cleanupSession(sessionId);
@@ -576,7 +579,7 @@ export const abortUpload = async (
     fs.rmSync(session.tmpDir, { recursive: true, force: true });
     cleanupSession(sessionId);
 
-    const dataStore = new DataStore(storeId);
+    const dataStore = DataStore.from(storeId);
     await dataStore.generateManifestFile();
 
     res.status(200).json({
