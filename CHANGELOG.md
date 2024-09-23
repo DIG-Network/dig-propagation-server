@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.52](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.51...v0.0.1-alpha.52) (2024-09-23)
+
+
+### Bug Fixes
+
+* add rootHash to datastore constuctor ([7035ba1](https://github.com/DIG-Network/dig-propagation-server/commit/7035ba1b74c5ee48f776993a0519e2fb3657956b))
+
 ### [0.0.1-alpha.51](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.50...v0.0.1-alpha.51) (2024-09-23)
 
 ### [0.0.1-alpha.50](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.49...v0.0.1-alpha.50) (2024-09-23)
