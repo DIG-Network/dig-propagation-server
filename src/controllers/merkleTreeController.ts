@@ -151,14 +151,9 @@ export const validateDataFile = async (
       );
     }
 
-    // Initialize the DataStore and retrieve the root history 
-    // but to represent this we use an empty hash 0000...0
-    const dataStore = DataStore.from(storeId);
-    const rootHistory = await dataStore.getRootHistory();
-
     // a tree with zero leaves does not have a root.
     if (parsedData.leaves.length > 0) {
-      // Load the dat file into a merkle tree to recalculate the rootHash and 
+      // Load the dat file into a merkle tree to recalculate the rootHash and
       // verify that the roothash presented belongs to the leaves of this tree.
       const merkleTreeRoot = DataIntegrityTree.getRootOfForeignTree({
         leaves: parsedData.leaves,
@@ -167,10 +162,23 @@ export const validateDataFile = async (
         throw new HttpError(400, "Invalid Merkle Root");
       }
     } else {
-      if (parsedData.root !== "0000000000000000000000000000000000000000000000000000000000000000") {
+      if (
+        parsedData.root !==
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ) {
         throw new HttpError(400, "Invalid Merkle Root");
+      } else {
+        console.log(
+          `.dat file for rootHash ${rootHash} has been successfully validated.`
+        );
+        return;
       }
     }
+
+    // Initialize the DataStore and retrieve the root history
+    // but to represent this we use an empty hash 0000...0
+    const dataStore = DataStore.from(storeId);
+    const rootHistory = await dataStore.getRootHistory();
 
     // Check if the rootHash is in the store's root history
     if (!rootHistory.some((entry) => entry.root_hash === rootHash)) {
@@ -541,7 +549,6 @@ export const commitUpload = async (
     setTimeout(async () => {
       await dataStore.generateManifestFile(finalDir);
     }, 0);
-    
 
     // Clean up the session folder after merging
     cleanupSession(sessionId);
