@@ -684,7 +684,7 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
     // Set headers
     res.setHeader("Content-Disposition", `attachment; filename="${path.basename(dataPath)}"`);
     res.setHeader("Content-Length", fileSize.toString());
-    res.setHeader("Content-Type", "application/octet-stream"); // Adjust MIME type if necessary
+    res.setHeader("Content-Type", "application/octet-stream");
 
     res.status(200);
 
