@@ -30,6 +30,7 @@
     "busboy": "^1.6.0",
     "chia-server-coin": "^0.0.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
     "fs-extra": "^11.2.0",
     "multer": "^1.4.5-lts.1",
     "node-cache": "^5.1.2",
