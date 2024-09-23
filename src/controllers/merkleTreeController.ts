@@ -609,3 +609,83 @@ export const abortUpload = async (
     res.status(statusCode).json({ error: error.message });
   }
 };
+
+/**
+ * Check if a specific file exists in the DataStore and return the file size if it exists (HEAD /storeId/roothash/*dataPath)
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const headFile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, roothash } = req.params;
+    const dataPath = req.params[0]; // Catch-all for dataPath
+
+    if (!storeId || !roothash || !dataPath) {
+      throw new HttpError(400, "Missing required parameters.");
+    }
+
+    // Build the full path for the file
+    const filePath = path.join(digFolderPath, "stores", storeId, roothash, dataPath);
+
+    // Check if the file exists
+    if (fs.existsSync(filePath)) {
+      const fileStats = fs.statSync(filePath); // Get file stats
+      const fileSize = fileStats.size; // Get the file size
+
+      // Set headers to indicate file existence and size
+      res.setHeader("x-file-exists", "true");
+      res.setHeader("x-file-size", fileSize.toString());
+
+      res.status(200).end(); // Respond with 200 if file exists
+    } else {
+      res.setHeader("x-file-exists", "false");
+      res.status(404).end(); // Respond with 404 if file does not exist
+    }
+  } catch (error: any) {
+    console.error("Error checking if file exists:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).end();
+  }
+};
+
+/**
+ * Download a specific file from the DataStore (GET /storeId/roothash/*dataPath)
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ */
+export const fetchFile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const dataPath = req.params[0]; // Catch-all for dataPath
+
+    if (!storeId || !dataPath) {
+      throw new HttpError(400, "Missing required parameters.");
+    }
+
+    // Build the full path for the file
+    const filePath = path.join(digFolderPath, "stores", storeId, dataPath);
+
+    // Check if the file exists
+    if (!fs.existsSync(filePath)) {
+      throw new HttpError(404, "File not found.");
+    }
+
+    // Stream the file to the response
+    const fileStream = fs.createReadStream(filePath);
+    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(dataPath)}"`);
+    res.status(200);
+    
+    fileStream.pipe(res);
+
+    fileStream.on("error", (err) => {
+      console.error("Error streaming the file:", err);
+      res.status(500).json({ error: "Error downloading the file." });
+    });
+  } catch (error: any) {
+    console.error("Error downloading file:", error);
+    const statusCode = error instanceof HttpError ? error.statusCode : 500;
+    res.status(statusCode).json({ error: error.message });
+  }
+};
+
+

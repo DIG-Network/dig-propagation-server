@@ -33,8 +33,7 @@ export const verifyCredentials = async (
   res: Response,
   next: NextFunction
 ) => {
-  next();
-  return;
+
   try {
     const credentials = await getCredentials();
 
