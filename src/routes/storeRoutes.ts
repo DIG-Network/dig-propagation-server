@@ -5,7 +5,9 @@ import {
   uploadFile,
   commitUpload,
   abortUpload,
-  generateFileNonce
+  generateFileNonce,
+  headFile,
+  fetchFile,
 } from "../controllers/merkleTreeController";
 
 import { setMnemonic } from "../controllers/configController";
@@ -35,6 +37,10 @@ router.post("/commit/:storeId/:sessionId", commitUpload);
 
 // Abort an upload session (POST /abort/{storeId}/{sessionId})
 router.post("/abort/:storeId/:sessionId", abortUpload);
+
+router.head("/fetch/:storeId/:roothash/*", headFile);
+router.get("/fetch/:storeId/*", fetchFile);
+
 
 
 export { router as storeRoutes };
