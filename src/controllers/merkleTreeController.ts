@@ -302,6 +302,13 @@ export const startUploadSession = async (
       rootHash = path.basename(filename, ".dat");
       session.roothash = rootHash;
 
+
+      path.join(digFolderPath, "stores", storeId, filename);
+
+      if (fs.existsSync(path.join(digFolderPath, "stores", storeId, `${rootHash}.dat`))) {
+        return res.status(400).json({ error: "RootHash already exists for store." });
+      }
+
       if (!/^[a-fA-F0-9]{64}$/.test(rootHash)) {
         return res.status(400).json({ error: "Invalid rootHash in filename." });
       }
@@ -670,16 +677,25 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
       throw new HttpError(404, "File not found.");
     }
 
+    // Get the file size
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+
+    // Set headers
+    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(dataPath)}"`);
+    res.setHeader("Content-Length", fileSize.toString());
+    res.setHeader("Content-Type", "application/octet-stream");
+
+    res.status(200);
+
     // Stream the file to the response
     const fileStream = fs.createReadStream(filePath);
-    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(dataPath)}"`);
-    res.status(200);
-    
     fileStream.pipe(res);
 
     fileStream.on("error", (err) => {
       console.error("Error streaming the file:", err);
-      res.status(500).json({ error: "Error downloading the file." });
+      // Since headers have already been sent, destroy the response
+      res.destroy(err);
     });
   } catch (error: any) {
     console.error("Error downloading file:", error);
@@ -687,5 +703,4 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
     res.status(statusCode).json({ error: error.message });
   }
 };
-
 
