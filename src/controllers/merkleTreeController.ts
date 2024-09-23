@@ -187,7 +187,7 @@ export const validateDataFile = async (
 
     // Initialize the DataStore and retrieve the root history
     // but to represent this we use an empty hash 0000...0
-    const dataStore = DataStore.from(storeId, rootHash);
+    const dataStore = new DataStore(storeId, { disableInitialize: true })
     const rootHistory = await dataStore.getRootHistory();
 
     // Check if the rootHash is in the store's root history
@@ -441,7 +441,7 @@ export const uploadFile = async (
     let isOwner = ownerCache.get<boolean>(cacheKey);
 
     if (isOwner === undefined) {
-      const dataStore = DataStore.from(storeId, session.roothash);
+      const dataStore = new DataStore(storeId, { disableInitialize: true })
       isOwner = await dataStore.hasMetaWritePermissions(
         Buffer.from(publicKey, "hex")
       );
@@ -555,7 +555,7 @@ export const commitUpload = async (
     });
 
     // Regenerate the manifest file based on the upload
-    const dataStore = DataStore.from(storeId, session.roothash);
+    const dataStore = new DataStore(storeId, { disableInitialize: true })
     setTimeout(async () => {
       await dataStore.generateManifestFile(finalDir);
     }, 0);
@@ -597,7 +597,7 @@ export const abortUpload = async (
     cleanupSession(sessionId);
     
 
-    const dataStore = DataStore.from(storeId, session.roothash);
+    const dataStore = new DataStore(storeId, { disableInitialize: true })
     await dataStore.generateManifestFile();
 
     res.status(200).json({
