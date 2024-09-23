@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.56](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.55...v0.0.1-alpha.56) (2024-09-23)
+
+
+### Features
+
+* add rate limiting to propagation server ([e9f6c97](https://github.com/DIG-Network/dig-propagation-server/commit/e9f6c976232d24bd8363607e36d98357dbcb2923))
+
 ### [0.0.1-alpha.55](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.54...v0.0.1-alpha.55) (2024-09-23)
 
 
