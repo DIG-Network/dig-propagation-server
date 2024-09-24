@@ -4,7 +4,12 @@ import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { getCredentials } from "../utils/authUtils";
 import { HttpError } from "../utils/HttpError";
-import { DataStore, Wallet, DataIntegrityTree } from "@dignetwork/dig-sdk";
+import {
+  DataStore,
+  Wallet,
+  DataIntegrityTree,
+  getFilePathFromSha256,
+} from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
 import tmp from "tmp";
@@ -135,7 +140,10 @@ export const validateDataFile = async (
     }
 
     if (session.roothash !== rootHash) {
-      throw new HttpError(400, "Root hash in the file name does not match the session root hash.");
+      throw new HttpError(
+        400,
+        "Root hash in the file name does not match the session root hash."
+      );
     }
 
     // Ensure the file exists
@@ -187,7 +195,7 @@ export const validateDataFile = async (
 
     // Initialize the DataStore and retrieve the root history
     // but to represent this we use an empty hash 0000...0
-    const dataStore = new DataStore(storeId, { disableInitialize: true })
+    const dataStore = new DataStore(storeId, { disableInitialize: true });
     const rootHistory = await dataStore.getRootHistory();
 
     // Check if the rootHash is in the store's root history
@@ -302,11 +310,16 @@ export const startUploadSession = async (
       rootHash = path.basename(filename, ".dat");
       session.roothash = rootHash;
 
-
       path.join(digFolderPath, "stores", storeId, filename);
 
-      if (fs.existsSync(path.join(digFolderPath, "stores", storeId, `${rootHash}.dat`))) {
-        return res.status(400).json({ error: "RootHash already exists for store." });
+      if (
+        fs.existsSync(
+          path.join(digFolderPath, "stores", storeId, `${rootHash}.dat`)
+        )
+      ) {
+        return res
+          .status(400)
+          .json({ error: "RootHash already exists for store." });
       }
 
       if (!/^[a-fA-F0-9]{64}$/.test(rootHash)) {
@@ -448,7 +461,7 @@ export const uploadFile = async (
     let isOwner = ownerCache.get<boolean>(cacheKey);
 
     if (isOwner === undefined) {
-      const dataStore = new DataStore(storeId, { disableInitialize: true })
+      const dataStore = new DataStore(storeId, { disableInitialize: true });
       isOwner = await dataStore.hasMetaWritePermissions(
         Buffer.from(publicKey, "hex")
       );
@@ -538,8 +551,8 @@ export const commitUpload = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  const { storeId, sessionId } = req.params;
   try {
-    const { storeId, sessionId } = req.params;
     const finalDir = path.join(digFolderPath, "stores", storeId);
 
     // Retrieve the session information from the cache
@@ -549,6 +562,27 @@ export const commitUpload = async (
     }
 
     const sessionUploadDir = session.tmpDir;
+
+    // Ensure all the files in this roothash have been uploaded
+    // We dont need to do another integrity check since we already checked on upload.
+    // Just check for existance.
+    const datFilePath = path.join(sessionUploadDir, `${session.roothash}.dat`);
+    if (!fs.existsSync(datFilePath)) {
+      throw new HttpError(400, "RootHash .dat file is missing.");
+    }
+
+    const datFileContent = JSON.parse(fs.readFileSync(datFilePath, "utf-8"));
+
+    for (const [fileKey, fileData] of Object.entries(datFileContent.files)) {
+      const dataPath = getFilePathFromSha256(
+        datFileContent.files[fileKey].sha256,
+        "data"
+      );
+
+      if (!fs.existsSync(path.join(sessionUploadDir, dataPath))) {
+        throw new HttpError(400, `Missing file: ${fileKey}, aborting session.`);
+      }
+    }
 
     // Ensure the destination store directory exists
     if (!fs.existsSync(finalDir)) {
@@ -562,13 +596,10 @@ export const commitUpload = async (
     });
 
     // Regenerate the manifest file based on the upload
-    const dataStore = new DataStore(storeId, { disableInitialize: true })
-    setTimeout(async () => {
-      await dataStore.generateManifestFile(finalDir);
-    }, 0);
-
-    // Clean up the session folder after merging
-    cleanupSession(sessionId);
+    const dataStore = new DataStore(storeId, { disableInitialize: true });
+    // purposely not promise.all to ensure the manifest is generated after 
+    await dataStore.cacheStoreCreationHeight();
+    await dataStore.generateManifestFile(finalDir);
 
     res.status(200).json({
       message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.`,
@@ -577,6 +608,8 @@ export const commitUpload = async (
     console.error("Error committing upload:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
     res.status(statusCode).json({ error: error.message });
+  } finally {
+    cleanupSession(sessionId);
   }
 };
 
@@ -602,9 +635,8 @@ export const abortUpload = async (
     // Clean up the session folder and remove it from the cache
     fs.rmSync(session.tmpDir, { recursive: true, force: true });
     cleanupSession(sessionId);
-    
 
-    const dataStore = new DataStore(storeId, { disableInitialize: true })
+    const dataStore = new DataStore(storeId, { disableInitialize: true });
     await dataStore.generateManifestFile();
 
     res.status(200).json({
@@ -632,7 +664,13 @@ export const headFile = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Build the full path for the file
-    const filePath = path.join(digFolderPath, "stores", storeId, roothash, dataPath);
+    const filePath = path.join(
+      digFolderPath,
+      "stores",
+      storeId,
+      roothash,
+      dataPath
+    );
 
     // Check if the file exists
     if (fs.existsSync(filePath)) {
@@ -682,7 +720,10 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
     const fileSize = stat.size;
 
     // Set headers
-    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(dataPath)}"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${path.basename(dataPath)}"`
+    );
     res.setHeader("Content-Length", fileSize.toString());
     res.setHeader("Content-Type", "application/octet-stream");
 
@@ -703,4 +744,3 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
     res.status(statusCode).json({ error: error.message });
   }
 };
-

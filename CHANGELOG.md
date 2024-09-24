@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.59](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.58...v0.0.1-alpha.59) (2024-09-24)
+
+
+### Features
+
+* gen height file on commit ([51ac0c5](https://github.com/DIG-Network/dig-propagation-server/commit/51ac0c5d7922d84980f72e26d3d93f31b9be7c3c))
+
 ### [0.0.1-alpha.58](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.57...v0.0.1-alpha.58) (2024-09-24)
 
 ### [0.0.1-alpha.57](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.56...v0.0.1-alpha.57) (2024-09-24)
