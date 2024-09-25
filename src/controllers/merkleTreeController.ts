@@ -235,8 +235,6 @@ export const headStore = async (req: Request, res: Response): Promise<void> => {
 
     const storePath = path.join(digFolderPath, "stores", storeId);
 
-    console.log(`Store Path: ${storePath}`);
-
     // Check if the store exists
     const storeExists = fs.existsSync(storePath);
     res.setHeader("x-store-exists", storeExists ? "true" : "false");
