@@ -577,9 +577,25 @@ export const commitUpload = async (
         "data"
       );
 
-      if (!fs.existsSync(path.join(sessionUploadDir, dataPath))) {
-        if (!fs.existsSync(path.join(finalDir, dataPath))) {
-          throw new HttpError(400, `Missing file: ${Buffer.from(fileKey, 'hex')}, aborting session.`);
+      const sessionFilePath = path.join(sessionUploadDir, dataPath);
+      const finalFilePath = path.join(finalDir, dataPath);
+
+      // Check if the file exists at sessionFilePath first
+      if (!fs.existsSync(sessionFilePath)) {
+        // If finalDir doesn't exist, throw an error
+        if (!fs.existsSync(finalDir)) {
+          throw new HttpError(
+            400,
+            `Missing file: ${Buffer.from(fileKey, "hex")}, aborting session.`
+          );
+        }
+
+        // If finalDir exists but the file is not found in finalFilePath, throw an error
+        if (!fs.existsSync(finalFilePath)) {
+          throw new HttpError(
+            400,
+            `Missing file: ${Buffer.from(fileKey, "hex")}, aborting session.`
+          );
         }
       }
     }
@@ -597,7 +613,7 @@ export const commitUpload = async (
 
     // Regenerate the manifest file based on the upload
     const dataStore = new DataStore(storeId, { disableInitialize: true });
-    // purposely not promise.all to ensure the manifest is generated after 
+    // purposely not promise.all to ensure the manifest is generated after
     await dataStore.cacheStoreCreationHeight();
     await dataStore.generateManifestFile(finalDir);
 
