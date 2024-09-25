@@ -578,7 +578,9 @@ export const commitUpload = async (
       );
 
       if (!fs.existsSync(path.join(sessionUploadDir, dataPath))) {
-        throw new HttpError(400, `Missing file: ${Buffer.from(fileKey, 'hex')}, aborting session.`);
+        if (!fs.existsSync(path.join(finalDir, dataPath))) {
+          throw new HttpError(400, `Missing file: ${Buffer.from(fileKey, 'hex')}, aborting session.`);
+        }
       }
     }
 
