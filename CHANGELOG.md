@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.67](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.66...v0.0.1-alpha.67) (2024-09-25)
+
+
+### Features
+
+* add auth headers ([8e2726f](https://github.com/DIG-Network/dig-propagation-server/commit/8e2726fb0c5895358cd04737e29a06f9e5469542))
+
 ### [0.0.1-alpha.66](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.65...v0.0.1-alpha.66) (2024-09-25)
 
 ### [0.0.1-alpha.65](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.64...v0.0.1-alpha.65) (2024-09-25)
