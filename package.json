@@ -1,6 +1,6 @@
 {
   "name": "dig-propagation-server",
-  "version": "0.0.1-alpha.63",
+  "version": "0.0.1-alpha.64",
   "description": "",
   "type": "commonjs",
   "main": "./dist/index.js",
@@ -25,7 +25,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@dignetwork/dig-sdk": "^0.0.1-alpha.81",
+    "@dignetwork/dig-sdk": "^0.0.1-alpha.83",
     "async-mutex": "^0.5.0",
     "busboy": "^1.6.0",
     "chia-server-coin": "^0.0.5",
