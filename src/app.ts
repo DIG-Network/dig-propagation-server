@@ -35,7 +35,6 @@ const app = express();
 const PORT = Number(process.env.PORT) || 4159;
 
 // Apply store routes
-app.use(verifyCredentials);
 app.use("/", storeRoutes);
 
 const serverOptions = {
