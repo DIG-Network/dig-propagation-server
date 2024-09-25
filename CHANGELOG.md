@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.65](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.64...v0.0.1-alpha.65) (2024-09-25)
+
 ### [0.0.1-alpha.64](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.63...v0.0.1-alpha.64) (2024-09-25)
 
 ### [0.0.1-alpha.63](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.62...v0.0.1-alpha.63) (2024-09-25)
