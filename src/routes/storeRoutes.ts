@@ -17,6 +17,7 @@ import {
   subscribeToStore,
   unsubscribeToStore,
 } from "../controllers/storeController";
+import { verifyAuthorization } from "../middleware/verifyAuthorization";
 
 // Rate limiting for file downloads, based on storeId and catch-all path
 const rateLimitForStore = rateLimit({
@@ -42,9 +43,9 @@ const rateLimitUploadSessions = rateLimit({
 
 const router = express.Router();
 
-router.post("/unsubscribe", express.json(), unsubscribeToStore);
-router.post("/subscribe", express.json(), subscribeToStore);
-router.post("/mnemonic", express.json(), setMnemonic);
+router.post("/unsubscribe", express.json(), verifyAuthorization, unsubscribeToStore);
+router.post("/subscribe", express.json(), verifyAuthorization, subscribeToStore);
+router.post("/mnemonic", express.json(), verifyAuthorization, setMnemonic);
 
 // Head request to check if a store exists
 router.head("/:storeId", verifyMnemonic, headStore);

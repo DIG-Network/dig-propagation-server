@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import { storeRoutes } from "./routes";
 import { Tls } from "chia-server-coin";
-import { verifyCredentials } from './middleware/verifyMnemonic';
 
 const caCertPath = path.join(__dirname, "ssl", "ca", "chia_ca.crt");
 const caKeyPath = path.join(__dirname, "ssl", "ca", "chia_ca.key");
@@ -36,7 +35,6 @@ const app = express();
 const PORT = Number(process.env.PORT) || 4159;
 
 // Apply store routes
-app.use(verifyCredentials);
 app.use("/", storeRoutes);
 
 const serverOptions = {
