@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.74](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.73...v0.0.1-alpha.74) (2024-09-26)
+
+
+### Bug Fixes
+
+* bust roothistory cache ([b52b7e7](https://github.com/DIG-Network/dig-propagation-server/commit/b52b7e7fd88d2cf313812c910a1af972f2037082))
+
 ### [0.0.1-alpha.73](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.72...v0.0.1-alpha.73) (2024-09-25)
 
 ### [0.0.1-alpha.72](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.71...v0.0.1-alpha.72) (2024-09-25)
