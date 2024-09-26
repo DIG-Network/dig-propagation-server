@@ -196,14 +196,18 @@ export const validateDataFile = async (
     // Initialize the DataStore and retrieve the root history
     // but to represent this we use an empty hash 0000...0
     const dataStore = new DataStore(storeId, { disableInitialize: true });
-    const rootHistory = await dataStore.getRootHistory();
+    let rootHistory = await dataStore.getRootHistory();
 
-    // Check if the rootHash is in the store's root history
+    // If rootHash is not found, bust the cache and check again
     if (!rootHistory.some((entry) => entry.root_hash === rootHash)) {
-      throw new HttpError(
-        400,
-        "The provided rootHash is not part of the store's root history."
-      );
+      rootHistory = await dataStore.getRootHistory(true);
+
+      if (!rootHistory.some((entry) => entry.root_hash === rootHash)) {
+        throw new HttpError(
+          400,
+          "The provided rootHash is not part of the store's root history."
+        );
+      }
     }
 
     console.log(
