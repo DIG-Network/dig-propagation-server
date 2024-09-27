@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.79](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.78...v0.0.1-alpha.79) (2024-09-27)
+
+
+### Bug Fixes
+
+* bad server coin referance ([72cc95d](https://github.com/DIG-Network/dig-propagation-server/commit/72cc95d12cd7ff9d2ed14ba0dfc71bbd9d92a1a1))
+
 ### [0.0.1-alpha.78](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.77...v0.0.1-alpha.78) (2024-09-27)
 
 
