@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.78](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.77...v0.0.1-alpha.78) (2024-09-27)
+
+
+### Bug Fixes
+
+* cleanup session if dat file invalid ([b201feb](https://github.com/DIG-Network/dig-propagation-server/commit/b201feb86ffdd3310361e94cf505788d169cd2bb))
+
 ### [0.0.1-alpha.77](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.76...v0.0.1-alpha.77) (2024-09-26)
 
 ### [0.0.1-alpha.76](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.75...v0.0.1-alpha.76) (2024-09-26)
