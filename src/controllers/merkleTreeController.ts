@@ -271,6 +271,8 @@ export const startUploadSession = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  let sessionId: string | null = null;
+
   try {
     const { storeId } = req.params;
 
@@ -299,7 +301,7 @@ export const startUploadSession = async (
     }
 
     // Create session and temp directory for uploaded file storage
-    const sessionId = createSessionWithTTL(); // 5 minutes TTL
+    sessionId = createSessionWithTTL(); // 5 minutes TTL
     const session = sessionCache[sessionId];
 
     const bb = Busboy({ headers: req.headers });
@@ -335,6 +337,9 @@ export const startUploadSession = async (
 
       fileStream.on("finish", async () => {
         try {
+          if (!sessionId) {
+            throw new HttpError(400, "Session ID not found.");
+          }
           // Validate the uploaded .dat file
           await validateDataFile(tmpDatFilePath, storeId, sessionId);
           res.status(200).json({
@@ -342,6 +347,9 @@ export const startUploadSession = async (
             sessionId,
           });
         } catch (err: any) {
+          if (sessionId) {
+            cleanupSession(sessionId);
+          }
           res.status(400).json({ error: err.message });
         }
       });
@@ -355,6 +363,10 @@ export const startUploadSession = async (
     req.pipe(bb);
   } catch (error: any) {
     console.error("Error starting upload session:", error);
+    if (sessionId) {
+      cleanupSession(sessionId);
+    }
+
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
     res.status(statusCode).json({ error: error.message });
   }
