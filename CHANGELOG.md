@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.82](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.81...v0.0.1-alpha.82) (2024-10-01)
+
+
+### Features
+
+* lighter integrity check ([c90715c](https://github.com/DIG-Network/dig-propagation-server/commit/c90715c053f2abacde192ca0aace0f4b4f63a2e8))
+
 ### [0.0.1-alpha.81](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.80...v0.0.1-alpha.81) (2024-10-01)
 
 
