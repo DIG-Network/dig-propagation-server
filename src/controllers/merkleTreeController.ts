@@ -594,6 +594,7 @@ export const uploadFile = async (
 
     bb.on("finish", () => {
       // All files have been processed
+      console.log(`${filename} uploaded to session ${sessionId}.`);
       res.status(200).json({
         message: `Files uploaded to DataStore ${storeId} under session ${sessionId}.`,
         files: uploadResults,
