@@ -107,12 +107,7 @@ async function merkleIntegrityCheck(
     throw new Error(`No matching file found with sha256: ${expectedSha256}`);
   }
 
-   const combinedHash = crypto
-      .createHash("sha256")
-      .update(`${hexKey}/${verifiedSha256}`)
-      .digest("hex");
-
-  if (combinedHash !== expectedSha256) {
+  if (verifiedSha256 !== expectedSha256) {
     throw new Error(
       `Verified sha256 ${verifiedSha256} does not match expected sha256 ${expectedSha256}`
     );
