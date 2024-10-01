@@ -18,6 +18,8 @@ import NodeCache from "node-cache";
 import { generateNonce, validateNonce } from "../utils/nonce";
 import Busboy from "busboy";
 import fsExtra from "fs-extra";
+import { HashingStream } from "../utils/HasingStream";
+import * as zlib from "zlib";
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -84,7 +86,8 @@ async function merkleIntegrityCheck(
   treePath: string,
   tmpDir: string,
   dataPath: string,
-  roothash: string
+  roothash: string,
+  verifiedSha256: string
 ): Promise<boolean> {
   const rootHashContent = fs.readFileSync(treePath, "utf-8");
   const tree = JSON.parse(rootHashContent);
@@ -103,13 +106,20 @@ async function merkleIntegrityCheck(
     throw new Error(`No matching file found with sha256: ${expectedSha256}`);
   }
 
+  if (verifiedSha256 !== expectedSha256) {
+    throw new Error(
+      `Verified sha256 ${verifiedSha256} does not match expected sha256 ${expectedSha256}`
+    );
+  }
+
   // Validate the integrity with the foreign tree
   const integrity = await DataIntegrityTree.validateKeyIntegrityWithForeignTree(
     hexKey,
     expectedSha256,
     tree,
     roothash,
-    path.join(tmpDir, "data")
+    path.join(tmpDir, "data"),
+    true
   );
 
   console.log("Integrity check result:", integrity);
@@ -489,54 +499,93 @@ export const uploadFile = async (
     // Use Busboy to handle file uploads
     const bb = Busboy({ headers: req.headers });
 
-    bb.on("file", async (_fieldname, file, info) => {
-      // Reset TTL periodically while streaming the file
-      const passThrough = new PassThrough();
-      passThrough.on("data", () => {
-        session.resetTtl();
-        ownerCache.ttl(cacheKey, ownerCacheTTL); // Extend cache TTL
-      });
+    const uploadResults: Array<{ filename: string; sha256: string }> = [];
 
-      // Path where the file will be stored temporarily
-      const filePath = path.join(session.tmpDir, filename);
+    bb.on("file", (_fieldname, file, info) => {
+      const { filename } = info;
 
-      // Ensure the directory exists before writing the file
-      const dir = path.dirname(filePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      // Process each file without async/await in the event handler
+      // Wrap in a function to handle async processing
+      (async () => {
+        try {
+          // Reset TTL periodically while streaming the file
+          const passThrough = new PassThrough();
+          passThrough.on("data", () => {
+            session.resetTtl();
+            ownerCache.ttl(cacheKey, ownerCacheTTL); // Extend cache TTL
+          });
 
-      const fileStream = fs.createWriteStream(filePath);
+          // Path where the file will be stored temporarily
+          const filePath = path.join(session.tmpDir, filename);
 
-      // Stream the file to disk
-      await streamPipeline(file.pipe(passThrough), fileStream);
+          // Ensure the directory exists before writing the file
+          const dir = path.dirname(filePath);
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
 
-      // Load the rootHash.dat file for this session
-      const rootHashDatPath = path.join(
-        session.tmpDir,
-        `${session.roothash}.dat`
-      );
-      if (!fs.existsSync(rootHashDatPath)) {
-        throw new HttpError(400, "rootHash.dat file is missing.");
-      }
+          // Create the write stream to save the compressed file
+          const fileStream = fs.createWriteStream(filePath);
 
-      if (filename.includes("data/")) {
-        if (
-          !(await merkleIntegrityCheck(
-            rootHashDatPath,
+          // Create the HashingStream
+          const hashingStream = new HashingStream("sha256");
+
+          // Create the gzip compression stream
+          const gzip = zlib.createGzip();
+
+          // Pipe the streams: file -> passThrough -> hashingStream -> gzip -> fileStream
+          await streamPipeline(
+            file.pipe(passThrough),
+            hashingStream,
+            gzip,
+            fileStream
+          );
+
+          // After the pipeline is completed, get the hash digest
+          const sha256Digest = hashingStream.digest!;
+
+          // Load the rootHash.dat file for this session
+          const rootHashDatPath = path.join(
             session.tmpDir,
-            filename,
-            session.roothash || ""
-          ))
-        ) {
-          cleanupSession(sessionId);
-          throw new HttpError(400, "File integrity check failed");
-        }
-      }
+            `${session.roothash}.dat`
+          );
 
-      // Confirm file upload
+          if (!fs.existsSync(rootHashDatPath)) {
+            throw new HttpError(400, "rootHash.dat file is missing.");
+          }
+
+          if (filename.includes("data/")) {
+            if (
+              !(await merkleIntegrityCheck(
+                rootHashDatPath,
+                session.tmpDir,
+                filename,
+                session.roothash || "",
+                sha256Digest
+              ))
+            ) {
+              cleanupSession(sessionId);
+              throw new HttpError(400, "File integrity check failed");
+            }
+          }
+
+          // Store the result
+          uploadResults.push({
+            filename,
+            sha256: sha256Digest,
+          });
+        } catch (err) {
+          console.error("Error processing file upload:", err);
+          bb.emit("error", err);
+        }
+      })();
+    });
+
+    bb.on("finish", () => {
+      // All files have been processed
       res.status(200).json({
-        message: `File ${filename} uploaded to DataStore ${storeId} under session ${sessionId}.`,
+        message: `Files uploaded to DataStore ${storeId} under session ${sessionId}.`,
+        files: uploadResults,
       });
     });
 
