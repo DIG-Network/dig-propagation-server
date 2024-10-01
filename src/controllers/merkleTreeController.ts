@@ -502,8 +502,6 @@ export const uploadFile = async (
     const uploadResults: Array<{ filename: string; sha256: string }> = [];
 
     bb.on("file", (_fieldname, file, info) => {
-      const { filename } = info;
-
       // Wrap in an async IIFE to use await inside the event handler
       (async () => {
         try {
