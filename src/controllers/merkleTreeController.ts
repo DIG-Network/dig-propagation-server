@@ -9,6 +9,7 @@ import {
   Wallet,
   DataIntegrityTree,
   getFilePathFromSha256,
+  Environment,
 } from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
@@ -95,7 +96,6 @@ async function merkleIntegrityCheck(
 
   // Extract expected sha256 from dataPath
   const expectedSha256 = dataPath.replace("data", "").replace(/\//g, "");
-  console.log("expectedSha256", expectedSha256);
 
   // Find the hexKey in the tree based on matching sha256
   const hexKey = Object.keys(tree.files).find((key) => {
@@ -123,7 +123,10 @@ async function merkleIntegrityCheck(
     true
   );
 
-  console.log("Integrity check result:", integrity);
+  if (Environment.DEBUG) {
+    console.log("Integrity check result:", integrity);
+  }
+  
   return integrity;
 }
 
@@ -591,6 +594,7 @@ export const uploadFile = async (
 
     bb.on("finish", () => {
       // All files have been processed
+      console.log(`${filename} uploaded to session ${sessionId}.`);
       res.status(200).json({
         message: `Files uploaded to DataStore ${storeId} under session ${sessionId}.`,
         files: uploadResults,
