@@ -16,8 +16,9 @@ ARG TARGETARCH
 RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
     echo "Etc/UTC" > /etc/timezone
 
-# Install curl, build-essential, and other dependencies, including tzdata
+# Install wget, curl, build-essential, and other dependencies, including tzdata
 RUN apt-get update && apt-get install -y \
+    wget \
     curl \
     build-essential \
     libsecret-1-dev \
