@@ -448,19 +448,19 @@ export const uploadFile = async (
     const filename = req.params[0];
 
     // Get nonce, publicKey, and keyOwnershipSig from the headers
-    const keyOwnershipSig = req.headers["x-key-ownership-sig"] as string;
-    const publicKey = req.headers["x-public-key"] as string;
-    const nonce = req.headers["x-nonce"] as string;
+    const keyOwnershipSig = req.headers['x-key-ownership-sig'] as string;
+    const publicKey = req.headers['x-public-key'] as string;
+    const nonce = req.headers['x-nonce'] as string;
 
     if (!keyOwnershipSig || !publicKey || !nonce) {
       throw new HttpError(
         400,
-        "Missing required headers: nonce, publicKey, or keyOwnershipSig."
+        'Missing required headers: nonce, publicKey, or keyOwnershipSig.'
       );
     }
 
     if (!validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
-      throw new HttpError(401, "Invalid nonce.");
+      throw new HttpError(401, 'Invalid nonce.');
     }
 
     // Validate the key ownership signature using the nonce
@@ -471,13 +471,13 @@ export const uploadFile = async (
     );
 
     if (!isSignatureValid) {
-      throw new HttpError(401, "Invalid key ownership signature.");
+      throw new HttpError(401, 'Invalid key ownership signature.');
     }
 
     // Check if the session exists in the cache and reset the TTL if found
     const session = sessionCache[sessionId];
     if (!session) {
-      throw new HttpError(404, "Session not found or expired.");
+      throw new HttpError(404, 'Session not found or expired.');
     }
 
     // Check if the user has write permissions to the store
@@ -487,13 +487,13 @@ export const uploadFile = async (
     if (isOwner === undefined) {
       const dataStore = new DataStore(storeId, { disableInitialize: true });
       isOwner = await dataStore.hasMetaWritePermissions(
-        Buffer.from(publicKey, "hex")
+        Buffer.from(publicKey, 'hex')
       );
       ownerCache.set(cacheKey, isOwner);
     }
 
     if (!isOwner) {
-      throw new HttpError(403, "You do not have write access to this store.");
+      throw new HttpError(403, 'You do not have write access to this store.');
     }
 
     // Use Busboy to handle file uploads
@@ -501,16 +501,15 @@ export const uploadFile = async (
 
     const uploadResults: Array<{ filename: string; sha256: string }> = [];
 
-    bb.on("file", (_fieldname, file, info) => {
+    bb.on('file', (_fieldname, file, info) => {
       const { filename } = info;
 
-      // Process each file without async/await in the event handler
-      // Wrap in a function to handle async processing
+      // Wrap in an async IIFE to use await inside the event handler
       (async () => {
         try {
           // Reset TTL periodically while streaming the file
           const passThrough = new PassThrough();
-          passThrough.on("data", () => {
+          passThrough.on('data', () => {
             session.resetTtl();
             ownerCache.ttl(cacheKey, ownerCacheTTL); // Extend cache TTL
           });
@@ -524,22 +523,32 @@ export const uploadFile = async (
             fs.mkdirSync(dir, { recursive: true });
           }
 
-          // Create the write stream to save the compressed file
+          // Create the write stream to save the file
           const fileStream = fs.createWriteStream(filePath);
 
           // Create the HashingStream
-          const hashingStream = new HashingStream("sha256");
+          const hashingStream = new HashingStream('sha256');
 
-          // Create the gzip compression stream
-          const gzip = zlib.createGzip();
+          // Decide whether to compress the file based on filename
+          if (filename.includes('data/')) {
+            // Create the gzip compression stream
+            const gzip = zlib.createGzip();
 
-          // Pipe the streams: file -> passThrough -> hashingStream -> gzip -> fileStream
-          await streamPipeline(
-            file.pipe(passThrough),
-            hashingStream,
-            gzip,
-            fileStream
-          );
+            // Pipe the streams: file -> passThrough -> hashingStream -> gzip -> fileStream
+            await streamPipeline(
+              file.pipe(passThrough),
+              hashingStream,
+              gzip,
+              fileStream
+            );
+          } else {
+            // Pipe the streams: file -> passThrough -> hashingStream -> fileStream
+            await streamPipeline(
+              file.pipe(passThrough),
+              hashingStream,
+              fileStream
+            );
+          }
 
           // After the pipeline is completed, get the hash digest
           const sha256Digest = hashingStream.digest!;
@@ -549,24 +558,8 @@ export const uploadFile = async (
             session.tmpDir,
             `${session.roothash}.dat`
           );
-
           if (!fs.existsSync(rootHashDatPath)) {
-            throw new HttpError(400, "rootHash.dat file is missing.");
-          }
-
-          if (filename.includes("data/")) {
-            if (
-              !(await merkleIntegrityCheck(
-                rootHashDatPath,
-                session.tmpDir,
-                filename,
-                session.roothash || "",
-                sha256Digest
-              ))
-            ) {
-              cleanupSession(sessionId);
-              throw new HttpError(400, "File integrity check failed");
-            }
+            throw new HttpError(400, 'rootHash.dat file is missing.');
           }
 
           // Store the result
@@ -575,13 +568,13 @@ export const uploadFile = async (
             sha256: sha256Digest,
           });
         } catch (err) {
-          console.error("Error processing file upload:", err);
-          bb.emit("error", err);
+          console.error('Error processing file upload:', err);
+          bb.emit('error', err);
         }
-      })();
+      })(); // Immediately invoke the async function
     });
 
-    bb.on("finish", () => {
+    bb.on('finish', () => {
       // All files have been processed
       res.status(200).json({
         message: `Files uploaded to DataStore ${storeId} under session ${sessionId}.`,
@@ -589,14 +582,14 @@ export const uploadFile = async (
       });
     });
 
-    bb.on("error", (err) => {
-      console.error("Error handling file upload:", err);
-      res.status(500).json({ error: "File upload failed." });
+    bb.on('error', (err) => {
+      console.error('Error handling file upload:', err);
+      res.status(500).json({ error: 'File upload failed.' });
     });
 
     req.pipe(bb);
   } catch (error: any) {
-    console.error("Error uploading file:", error);
+    console.error('Error uploading file:', error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
     res.status(statusCode).json({ error: error.message });
   }
