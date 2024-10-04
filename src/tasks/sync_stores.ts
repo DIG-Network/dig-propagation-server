@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 import {
   getStoresList,
@@ -8,10 +9,13 @@ import {
   StoreMonitorRegistry,
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
+import { RootHistoryItem } from "@dignetwork/dig-sdk/dist/types";
 const mutex = new Mutex();
 
 const PUBLIC_IP_KEY = "publicIp";
 const nconfManager = new NconfManager("config.json");
+
+const missingSyncPool = new Set<string>();
 
 // -------------------------
 // Helper Functions
@@ -31,6 +35,21 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
     const dataStore = await DataStore.from(storeId);
     await dataStore.fetchCoinInfo();
 
+    const rootHistory = await dataStore.getRootHistory();
+
+    const lastRoot = _.last(rootHistory);
+    if (!lastRoot) {
+      console.error(`No root history found for store ${storeId}.`);
+      return;
+    }
+
+    // If not synced put in the pool to keep trying
+    if ((lastRoot as RootHistoryItem).synced) {
+      missingSyncPool.delete(storeId);
+    } else {
+      missingSyncPool.add(storeId);
+    }
+
     console.log(`Store ${storeId} synchronized successfully.`);
   } catch (error: any) {
     console.warn(
@@ -42,7 +61,6 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
     }
   }
 };
-
 
 /**
  * Ensures that the server coin exists and is valid for a specific store.
@@ -61,6 +79,16 @@ const ensureServerCoin = async (
     console.error(
       `Failed to ensure server coin for store ${storeId}: ${error.message}`
     );
+  }
+};
+
+const processMissingSyncPool = async (): Promise<void> => {
+  for (const storeId of missingSyncPool) {
+    try {
+      await syncStoreFromNetwork(storeId);
+    } catch (error: any) {
+      console.error(`Failed to sync store ${storeId}: ${error.message}`);
+    }
   }
 };
 
@@ -142,6 +170,8 @@ const syncStoresTask = new Task("sync-stores", async () => {
         releaseMutex();
         return; // Exit the task if we can't retrieve the public IP
       }
+
+      await processMissingSyncPool();
 
       for (const storeId of storeList) {
         try {
