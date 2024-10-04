@@ -52,7 +52,6 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
       console.log(`Store ${storeId} could not synchronize, will try again in a few minutes.`);
     }
 
-    
   } catch (error: any) {
     console.warn(
       `Initial sync attempt failed for ${storeId}: ${error.message}`
