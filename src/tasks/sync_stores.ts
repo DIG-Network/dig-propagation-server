@@ -1,9 +1,6 @@
-import fs from "fs";
-import path from "path";
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 import {
   getStoresList,
-  Wallet,
   DataStore,
   DigNetwork,
   NconfManager,
@@ -11,10 +8,6 @@ import {
   StoreMonitorRegistry,
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
-import { getStorageLocation } from "../utils/storage";
-
-const STORE_PATH = path.join(getStorageLocation(), "stores");
-
 const mutex = new Mutex();
 
 const PUBLIC_IP_KEY = "publicIp";
@@ -25,31 +18,19 @@ const nconfManager = new NconfManager("config.json");
 // -------------------------
 
 /**
- * Synchronizes a specific store.
- * @param storeId - The ID of the store to synchronize.
- */
-const syncStore = async (storeId: string): Promise<void> => {
-  console.log(`Starting sync process for store ${storeId}...`);
-
-  try {
-    console.log(`Store ${storeId} is out of date. Syncing...`);
-    await syncStoreFromNetwork(storeId);
-  } catch (error: any) {
-    console.trace(`Error processing store ${storeId}: ${error.message}`);
-  } finally {
-    await finalizeStoreSync(storeId);
-  }
-};
-
-/**
  * Attempts to synchronize a store from the network.
  * @param storeId - The ID of the store to synchronize.
  */
 const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   try {
     console.log(`Attempting to sync store ${storeId} from the network...`);
+
     const digNetwork = new DigNetwork(storeId);
     await digNetwork.syncStoreFromPeers();
+
+    const dataStore = await DataStore.from(storeId);
+    await dataStore.fetchCoinInfo();
+
     console.log(`Store ${storeId} synchronized successfully.`);
   } catch (error: any) {
     console.warn(
@@ -62,20 +43,6 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   }
 };
 
-/**
- * Finalizes the synchronization process for a store.
- * @param storeId - The ID of the store to finalize.
- */
-const finalizeStoreSync = async (storeId: string): Promise<void> => {
-  try {
-    console.log(`Finalizing sync for store ${storeId}...`);
-    const dataStore = await DataStore.from(storeId);
-    await dataStore.fetchCoinInfo();
-    console.log(`Finalization complete for store ${storeId}.`);
-  } catch (error: any) {
-    console.error(`Error in finalizing store ${storeId}: ${error.message}`);
-  }
-};
 
 /**
  * Ensures that the server coin exists and is valid for a specific store.
@@ -90,7 +57,6 @@ const ensureServerCoin = async (
     const serverCoin = new ServerCoin(storeId);
     await serverCoin.ensureServerCoinExists(publicIp);
     await serverCoin.meltOutdatedEpochs(publicIp);
-    console.log(`Server coin ensured for store ${storeId}.`);
   } catch (error: any) {
     console.error(
       `Failed to ensure server coin for store ${storeId}: ${error.message}`
@@ -124,7 +90,7 @@ const initializeStoreMonitor = async (): Promise<void> => {
         }
 
         console.log(`Store update detected for ${storeId}. Syncing...`);
-        await syncStore(storeId);
+        await syncStoreFromNetwork(storeId);
 
         if (publicIp) {
           await serverCoin.ensureServerCoinExists(publicIp);
@@ -134,7 +100,7 @@ const initializeStoreMonitor = async (): Promise<void> => {
 
     // Attempt to sync each store initially
     for (const storeId of storeList) {
-      await syncStore(storeId);
+      await syncStoreFromNetwork(storeId);
     }
 
     console.log("All stores have been initialized and synchronized.");
