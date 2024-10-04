@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.96](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.95...v0.0.1-alpha.96) (2024-10-04)
+
+
+### Features
+
+* add request ip middleware ([9f00109](https://github.com/DIG-Network/dig-propagation-server/commit/9f0010980abed3ec0ddc67bc30c092bb476c1b2c))
+
 ### [0.0.1-alpha.95](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.94...v0.0.1-alpha.95) (2024-10-04)
 
 
