@@ -112,11 +112,23 @@ const initializeStoreMonitor = async (): Promise<void> => {
 
     const storeList = getStoresList();
 
+    const publicIp: string | null | undefined =
+      await nconfManager.getConfigValue(PUBLIC_IP_KEY);
+
     // Register each store with the store monitor
     storeList.forEach((storeId) => {
+      const serverCoin = new ServerCoin(storeId);
       storeMonitor.registerStore(storeId, async () => {
+        if (publicIp) {
+          await serverCoin.ensureServerCoinExists(publicIp);
+        }
+
         console.log(`Store update detected for ${storeId}. Syncing...`);
         await syncStore(storeId);
+
+        if (publicIp) {
+          await serverCoin.ensureServerCoinExists(publicIp);
+        }
       });
     });
 
@@ -141,7 +153,6 @@ const initializeStoreMonitor = async (): Promise<void> => {
 const syncStoresTask = new Task("sync-stores", async () => {
   if (!mutex.isLocked()) {
     const releaseMutex = await mutex.acquire();
-    let mnemonic: string | undefined;
 
     try {
       console.log("Starting sync-stores task...");
@@ -197,7 +208,7 @@ const syncStoresTask = new Task("sync-stores", async () => {
 
 const job = new SimpleIntervalJob(
   {
-    seconds: 60,
+    minutes: 5,
     runImmediately: true,
   },
   syncStoresTask,
