@@ -3,7 +3,13 @@ import path from "path";
 import fs from "fs";
 
 // @ts-ignore
-import { DigNetwork, DataStore, DigPeer } from "@dignetwork/dig-sdk";
+import {
+  DigNetwork,
+  DataStore,
+  DigPeer,
+  ServerCoin,
+  NconfManager,
+} from "@dignetwork/dig-sdk";
 import { getStorageLocation } from "../utils/storage";
 
 export const subscribeToStore = async (
@@ -30,6 +36,15 @@ export const subscribeToStore = async (
     // Create an instance of DigNetwork and pull files from the network
     const digNetwork = new DigNetwork(storeId);
     await digNetwork.syncStoreFromPeers();
+
+    const nconfManager = new NconfManager("config.json");
+    const publicIp: string | null | undefined =
+      await nconfManager.getConfigValue("publicIp");
+
+    if (publicIp) {
+      const serverCoin = new ServerCoin(storeId);
+      await serverCoin.ensureServerCoinExists(publicIp);
+    }
 
     res.status(200).json({ message: `Subscribing to store ${storeId}` });
   } catch (error) {
