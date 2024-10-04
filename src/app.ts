@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { storeRoutes } from "./routes";
 import { Tls } from "@dignetwork/datalayer-driver";
+import requestIp from "request-ip";
 
 const caCertPath = path.join(__dirname, "ssl", "ca", "chia_ca.crt");
 const caKeyPath = path.join(__dirname, "ssl", "ca", "chia_ca.key");
@@ -33,6 +34,9 @@ const serverKey = fs.readFileSync(serverKeyPath);
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4159;
+
+app.set('trust proxy', true);
+app.use(requestIp.mw());
 
 // Apply store routes
 app.use("/", storeRoutes);

@@ -11,6 +11,7 @@ import {
   NconfManager,
 } from "@dignetwork/dig-sdk";
 import { getStorageLocation } from "../utils/storage";
+import requestIp from 'request-ip';
 
 export const subscribeToStore = async (
   req: Request,
@@ -170,19 +171,19 @@ export const syncStoreFromRequestor = async (
  */
 export const getUserIpAddresses = (req: Request, res: Response): void => {
   try {
+    const clientIp = requestIp.getClientIp(req); // This returns the IP in either IPv4 or IPv6 format
+
     let ip4: string | null = null;
     let ip6: string | null = null;
 
-    // Loop through the IPs and categorize them as IPv4 or IPv6
-    const ipAddresses = req.ips.length ? req.ips : [req.ip];
-    ipAddresses.forEach((ip) => {
-      if (!ip) return;
-      if (ip.includes(":")) {
-        ip6 = ip;
+    // Determine whether the client IP is IPv4 or IPv6
+    if (clientIp) {
+      if (clientIp.includes(':')) {
+        ip6 = clientIp;
       } else {
-        ip4 = ip;
+        ip4 = clientIp;
       }
-    });
+    }
 
     res.status(200).json({
       message: "IP addresses retrieved successfully.",
@@ -190,10 +191,7 @@ export const getUserIpAddresses = (req: Request, res: Response): void => {
       ip6,
     });
   } catch (error) {
-    console.error(
-      "An error occurred while retrieving the IP addresses:",
-      error
-    );
+    console.error("An error occurred while retrieving the IP addresses:", error);
     res.status(500).json({
       error: "An error occurred while retrieving the IP addresses.",
     });
