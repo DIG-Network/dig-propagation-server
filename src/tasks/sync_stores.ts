@@ -46,11 +46,12 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
     // If not synced put in the pool to keep trying
     if ((lastRoot as RootHistoryItem).synced) {
       missingSyncPool.delete(storeId);
+      console.log(`Store ${storeId} synchronized successfully.`);
     } else {
       missingSyncPool.add(storeId);
+      console.log(`Store ${storeId} could not synchronize, will try again in a few minutes.`);
     }
 
-    console.log(`Store ${storeId} synchronized successfully.`);
   } catch (error: any) {
     console.warn(
       `Initial sync attempt failed for ${storeId}: ${error.message}`
