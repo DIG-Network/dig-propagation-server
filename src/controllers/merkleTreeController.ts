@@ -10,6 +10,7 @@ import {
   DataIntegrityTree,
   getFilePathFromSha256,
   Environment,
+  DigNetwork
 } from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
@@ -21,7 +22,6 @@ import Busboy from "busboy";
 import fsExtra from "fs-extra";
 import { HashingStream } from "../utils/HasingStream";
 import * as zlib from "zlib";
-import crypto from "crypto";
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -694,6 +694,10 @@ export const commitUpload = async (
     await dataStore.cacheStoreCreationHeight();
     await dataStore.generateManifestFile(finalDir);
 
+    if (session.roothash) {
+      DigNetwork.pingNetworkOfUpdate(storeId, session.roothash);
+    }
+    
     res.status(200).json({
       message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.`,
     });

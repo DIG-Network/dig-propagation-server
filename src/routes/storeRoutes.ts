@@ -16,6 +16,8 @@ import { verifyMnemonic } from "../middleware/verifyMnemonic";
 import {
   subscribeToStore,
   unsubscribeToStore,
+  syncStoreFromRequestor,
+  getUserIpAddresses
 } from "../controllers/storeController";
 import { verifyAuthorization } from "../middleware/verifyAuthorization";
 
@@ -46,6 +48,8 @@ const router = express.Router();
 router.post("/unsubscribe", express.json(), verifyAuthorization, unsubscribeToStore);
 router.post("/subscribe", express.json(), verifyAuthorization, subscribeToStore);
 router.post("/mnemonic", express.json(), verifyAuthorization, setMnemonic);
+router.post("/update", express.json(), syncStoreFromRequestor);
+router.post("/peer", express.json(), getUserIpAddresses);
 
 // Head request to check if a store exists
 router.head("/:storeId", verifyMnemonic, headStore);

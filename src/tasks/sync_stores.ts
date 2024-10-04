@@ -1,13 +1,14 @@
 import fs from "fs";
-import path from 'path';
+import path from "path";
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 import {
   getStoresList,
-  Wallet, 
+  Wallet,
   DataStore,
   DigNetwork,
   NconfManager,
   ServerCoin,
+  StoreMonitorRegistry,
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 import { getStorageLocation } from "../utils/storage";
@@ -19,17 +20,18 @@ const mutex = new Mutex();
 const PUBLIC_IP_KEY = "publicIp";
 const nconfManager = new NconfManager("config.json");
 
+// -------------------------
+// Helper Functions
+// -------------------------
+
+/**
+ * Synchronizes a specific store.
+ * @param storeId - The ID of the store to synchronize.
+ */
 const syncStore = async (storeId: string): Promise<void> => {
   console.log(`Starting sync process for store ${storeId}...`);
 
   try {
-    const isUpToDate = await isStoreUpToDate(storeId);
-
-    if (isUpToDate) {
-      console.log(`Store ${storeId} is already up to date.`);
-      return;
-    }
-
     console.log(`Store ${storeId} is out of date. Syncing...`);
     await syncStoreFromNetwork(storeId);
   } catch (error: any) {
@@ -39,33 +41,16 @@ const syncStore = async (storeId: string): Promise<void> => {
   }
 };
 
-const isStoreUpToDate = async (storeId: string): Promise<boolean> => {
-  console.log(`Checking if store ${storeId} is up to date...`);
-  const dataStore = await DataStore.from(storeId);
-
-  const rootHistory = await dataStore.getRootHistory();
-  const storePath = path.join(STORE_PATH, storeId);
-
-  if (!fs.existsSync(storePath)) {
-    console.log(`Store path not found for store ${storeId}.`);
-    return false;
-  }
-
-  // Get the count of .dat files in the store directory
-  const datFiles = fs.readdirSync(storePath).filter(file => file.endsWith(".dat") && !file.includes('manifest'));
-  const datFileCount = datFiles.length;
-
-  console.log(`Root history count: ${rootHistory.length}, .dat files count: ${datFileCount}`);
-
-  return rootHistory.length === datFileCount;
-};
-
-
+/**
+ * Attempts to synchronize a store from the network.
+ * @param storeId - The ID of the store to synchronize.
+ */
 const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   try {
     console.log(`Attempting to sync store ${storeId} from the network...`);
     const digNetwork = new DigNetwork(storeId);
     await digNetwork.syncStoreFromPeers();
+    console.log(`Store ${storeId} synchronized successfully.`);
   } catch (error: any) {
     console.warn(
       `Initial sync attempt failed for ${storeId}: ${error.message}`
@@ -77,6 +62,10 @@ const syncStoreFromNetwork = async (storeId: string): Promise<void> => {
   }
 };
 
+/**
+ * Finalizes the synchronization process for a store.
+ * @param storeId - The ID of the store to finalize.
+ */
 const finalizeStoreSync = async (storeId: string): Promise<void> => {
   try {
     console.log(`Finalizing sync for store ${storeId}...`);
@@ -88,19 +77,71 @@ const finalizeStoreSync = async (storeId: string): Promise<void> => {
   }
 };
 
-const task = new Task("sync-stores", async () => {
+/**
+ * Ensures that the server coin exists and is valid for a specific store.
+ * @param storeId - The ID of the store.
+ * @param publicIp - The public IP address of the node.
+ */
+const ensureServerCoin = async (
+  storeId: string,
+  publicIp: string
+): Promise<void> => {
+  try {
+    const serverCoin = new ServerCoin(storeId);
+    await serverCoin.ensureServerCoinExists(publicIp);
+    await serverCoin.meltOutdatedEpochs(publicIp);
+    console.log(`Server coin ensured for store ${storeId}.`);
+  } catch (error: any) {
+    console.error(
+      `Failed to ensure server coin for store ${storeId}: ${error.message}`
+    );
+  }
+};
+
+// -------------------------
+// Initialization Function
+// -------------------------
+
+/**
+ * Initializes all stores by registering them with the store monitor and syncing them.
+ */
+const initializeStoreMonitor = async (): Promise<void> => {
+  try {
+    console.log("Initializing stores monitor...");
+    const storeMonitor = StoreMonitorRegistry.getInstance();
+
+    const storeList = getStoresList();
+
+    // Register each store with the store monitor
+    storeList.forEach((storeId) => {
+      storeMonitor.registerStore(storeId, async () => {
+        console.log(`Store update detected for ${storeId}. Syncing...`);
+        await syncStore(storeId);
+      });
+    });
+
+    // Attempt to sync each store initially
+    for (const storeId of storeList) {
+      await syncStore(storeId);
+    }
+
+    console.log("All stores have been initialized and synchronized.");
+  } catch (error: any) {
+    console.error(`Initialization failed: ${error.message}`);
+  }
+};
+
+// -------------------------
+// Scheduler Task
+// -------------------------
+
+/**
+ * Defines the scheduled task to sync stores and ensure server coins.
+ */
+const syncStoresTask = new Task("sync-stores", async () => {
   if (!mutex.isLocked()) {
     const releaseMutex = await mutex.acquire();
     let mnemonic: string | undefined;
-
-    try {
-      const wallet = await Wallet.load("default", false);
-      mnemonic = await wallet.getMnemonic();
-    } catch (error: any) {
-      console.error(`Error in sync-stores task: ${error.message}`);
-      releaseMutex();
-      return;
-    }
 
     try {
       console.log("Starting sync-stores task...");
@@ -121,16 +162,14 @@ const task = new Task("sync-stores", async () => {
         console.error(
           `Failed to retrieve public IP from configuration: ${error.message}`
         );
+        releaseMutex();
         return; // Exit the task if we can't retrieve the public IP
       }
 
       for (const storeId of storeList) {
         try {
-          await syncStore(storeId);
           if (publicIp) {
-            const serverCoin = new ServerCoin(storeId);
-            await serverCoin.ensureServerCoinExists(publicIp);
-            await serverCoin.meltOutdatedEpochs(publicIp);
+            await ensureServerCoin(storeId, publicIp);
           } else {
             console.warn(
               `Skipping server coin check for store ${storeId} due to missing public IP.`
@@ -152,13 +191,21 @@ const task = new Task("sync-stores", async () => {
   }
 });
 
+// -------------------------
+// Scheduler Job Setup
+// -------------------------
+
 const job = new SimpleIntervalJob(
   {
     seconds: 60,
     runImmediately: true,
   },
-  task,
+  syncStoresTask,
   { id: "sync-stores", preventOverrun: true }
 );
+
+setTimeout(() => {
+  initializeStoreMonitor();
+}, 5000);
 
 export default job;
