@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.102](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.101...v0.0.1-alpha.102) (2024-10-05)
+
+
+### Features
+
+* more agressive propagation algorithm ([c8e0f53](https://github.com/DIG-Network/dig-propagation-server/commit/c8e0f53feea7d9c25d2427f3f5229529506946dc))
+
+### [0.0.1-alpha.101](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.100...v0.0.1-alpha.101) (2024-10-04)
+
 ### [0.0.1-alpha.100](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.99...v0.0.1-alpha.100) (2024-10-04)
 
 ### [0.0.1-alpha.99](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.98...v0.0.1-alpha.99) (2024-10-04)
