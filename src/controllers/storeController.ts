@@ -112,9 +112,10 @@ export const syncStoreFromRequestor = async (
       return;
     }
 
-    const allStores = await DataStore.getAllStores();
+    const allStores = DataStore.getAllStores();
+    const allStoreIds = allStores.map((store) => store.StoreId);
 
-    if (!allStores.includes(storeId)) {
+    if (!allStoreIds.includes(storeId)) {
       res.status(400).json({
         error: `Store ${storeId} does not exist.`,
       });
