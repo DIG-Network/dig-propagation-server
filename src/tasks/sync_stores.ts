@@ -39,7 +39,7 @@ const processPeer = async (peerIp: string, storeId: string, rootHash: string, ch
       checkedPeers.add(peerIp); // Mark as checked only if peer has the rootHash
     } else {
       console.log(`Dig Peer ${peerIp} does not have rootHash ${rootHash}. Pinging update.`);
-      await digPeer.propagationServer.pingUpdate(rootHash);
+      await withTimeout( digPeer.propagationServer.pingUpdate(rootHash), 5000, "Dig Peer: ${peerIp} took to long to respond to ping request`");
       // Do NOT mark as checked if peer lacks the rootHash
     }
   } catch (error: any) {
