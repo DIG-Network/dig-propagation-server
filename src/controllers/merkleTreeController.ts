@@ -22,6 +22,7 @@ import Busboy from "busboy";
 import fsExtra from "fs-extra";
 import { HashingStream } from "../utils/HasingStream";
 import * as zlib from "zlib";
+import requestIp from 'request-ip';
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -825,6 +826,9 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
     res.setHeader("Content-Type", "application/octet-stream"); // Adjust MIME type if necessary
 
     res.status(200);
+
+    const clientIp = requestIp.getClientIp(req);
+    console.log(`Fetch Request from: ${clientIp}, StoreId: ${storeId}`);
 
     // Stream the file to the response
     const fileStream = fs.createReadStream(filePath);
