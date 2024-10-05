@@ -229,8 +229,7 @@ const task = new Task("sync-stores", async () => {
         console.error(
           `Failed to retrieve public IP from configuration: ${error.message}`
         );
-        releaseMutex();
-        return; // Exit the task if we can't retrieve the public IP
+        return; // Exit early; mutex will be released in finally
       }
 
       for (const storeId of storeList) {
@@ -238,7 +237,7 @@ const task = new Task("sync-stores", async () => {
           if (publicIp) {
             const serverCoin = new ServerCoin(storeId);
             await serverCoin.ensureServerCoinExists(publicIp);
-            
+
             // Synchronize the store based on its sync status
             await synchronizeStore(storeId, serverCoin);
 
@@ -266,12 +265,13 @@ const task = new Task("sync-stores", async () => {
     } catch (error: any) {
       console.error(`Error in sync-stores task: ${error.message}`);
     } finally {
-      releaseMutex();
+      releaseMutex(); // Ensure the mutex is always released here
     }
   } else {
     console.log("Sync-stores task is already running. Skipping this run.");
   }
 });
+
 
 // Schedule the task to run every 60 seconds, starting immediately
 const job = new SimpleIntervalJob(
