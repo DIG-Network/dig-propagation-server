@@ -8,6 +8,7 @@ import {
   NconfManager,
   ServerCoin,
   DigPeer,
+  withTimeout
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 import { getStorageLocation } from "../utils/storage";
@@ -31,18 +32,18 @@ const checkedPeersMap: Map<string, Set<string>> = new Map();
 const processPeer = async (peerIp: string, storeId: string, rootHash: string, checkedPeers: Set<string>): Promise<void> => {
   try {
     const digPeer = new DigPeer(peerIp, storeId);
-    const hasRootHash = await digPeer.contentServer.hasRootHash(rootHash);
+    const hasRootHash = await withTimeout(digPeer.contentServer.hasRootHash(rootHash), 5000, "`Dig Peer: ${peerIp} took to long to respond to head request`");
 
     if (hasRootHash) {
-      console.log(`Peer ${peerIp} already has rootHash ${rootHash}. Marking as checked.`);
+      console.log(`Dig Peer ${peerIp} already has rootHash ${rootHash}. Marking as checked.`);
       checkedPeers.add(peerIp); // Mark as checked only if peer has the rootHash
     } else {
-      console.log(`Peer ${peerIp} does not have rootHash ${rootHash}. Pinging update.`);
+      console.log(`Dig Peer ${peerIp} does not have rootHash ${rootHash}. Pinging update.`);
       await digPeer.propagationServer.pingUpdate(rootHash);
       // Do NOT mark as checked if peer lacks the rootHash
     }
   } catch (error: any) {
-    console.error(`Error interacting with peer ${peerIp}: ${error.message}`);
+    console.error(`Error interacting with Dig Peer: ${peerIp}: ${error.message}`);
   }
 };
 
