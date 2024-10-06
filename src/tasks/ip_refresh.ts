@@ -1,26 +1,26 @@
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 
 // @ts-ignore
-import { getPublicIpAddress, NconfManager } from "@dignetwork/dig-sdk";
+import { getPublicHost, NconfManager } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 
 const mutex = new Mutex();
 
-const PUBLIC_IP_KEY = "publicIp";
+const PUBLIC_Host_KEY = "publicHost";
 
 // Function to save the public IP address to nconf
 const savePublicIp = async (): Promise<void> => {
-  const nconfManager = new NconfManager("config.json"); // Assuming you have a config file named config.json
+  const nconfManager = new NconfManager("config.json");
   try {
-    const publicIp = await getPublicIpAddress();
-    if (publicIp) {
-      await nconfManager.setConfigValue(PUBLIC_IP_KEY, publicIp);
-      console.log(`Public IP address saved: ${publicIp}`);
+    const publicHost = await getPublicHost();
+    if (publicHost) {
+      await nconfManager.setConfigValue(PUBLIC_Host_KEY, publicHost);
+      console.log(`Public host saved: ${publicHost}`);
     } else {
-      console.warn("No public IP address found.");
+      console.warn("No public host found.");
     }
   } catch (error: any) {
-    console.error(`Failed to retrieve public IP address: ${error.message}`);
+    console.error(`Failed to retrieve host address: ${error.message}`);
   }
 };
 
