@@ -17,7 +17,9 @@ import {
   subscribeToStore,
   unsubscribeToStore,
   syncStoreFromRequestor,
-  getUserIpAddresses
+  getUserIpAddresses,
+  pingPeer,
+  uploadTest
 } from "../controllers/storeController";
 import { verifyAuthorization } from "../middleware/verifyAuthorization";
 
@@ -50,6 +52,10 @@ router.post("/subscribe", express.json(), verifyAuthorization, subscribeToStore)
 router.post("/mnemonic", express.json(), verifyAuthorization, setMnemonic);
 router.post("/update", express.json(), syncStoreFromRequestor);
 router.post("/peer", express.json(), getUserIpAddresses);
+
+// Diagnostics routes
+router.get("/diagnostics/ping", pingPeer);
+router.post("/diagnostics/bandwidth", uploadTest);
 
 // Head request to check if a store exists
 router.head("/:storeId", verifyMnemonic, headStore);

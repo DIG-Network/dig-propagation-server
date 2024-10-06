@@ -8,7 +8,8 @@ import {
   NconfManager,
   ServerCoin,
   DigPeer,
-  withTimeout
+  withTimeout,
+  PeerRanker
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 import { getStorageLocation } from "../utils/storage";
@@ -53,7 +54,7 @@ const processPeer = async (peerIp: string, storeId: string, rootHash: string, ch
  */
 const cleanCheckedPeersMap = (currentRootHash: string): void => {
   for (const [rootHash, _] of checkedPeersMap.entries()) {
-    if (rootHash !== currentRootHash) {f
+    if (rootHash !== currentRootHash) {
       checkedPeersMap.delete(rootHash);
       console.log(`Removed outdated rootHash ${rootHash} from checkedPeersMap.`);
     }
@@ -94,15 +95,21 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
     // Pass the checkedPeers as the blocklist to getActiveEpochPeers
     const blocklist = Array.from(checkedPeers);
     const peerIps: string[] = await serverCoin.getActiveEpochPeers(blocklist);
-    console.log(`Active epoch peers for store ${storeId}:`, peerIps);
+    
 
     if (peerIps.length === 0) {
       console.log(`No new peers to process for rootHash ${currentRootHash} in store ${storeId}.`);
       return;
     }
 
-    // Process peers one at a time sequentially
-    for (const peerIp of peerIps) {
+    console.log(`Ranking peers based on latency and bandwidth...`);
+    const peerRanker = new PeerRanker(peerIps);
+    const rankedPeers = await peerRanker.rankPeers();
+
+    console.log(`Active epoch peers for store ${storeId}:`, rankedPeers);
+
+    // Process peers one at a time sequentially, starting with the best-ranked peers
+    for (const { ip: peerIp } of rankedPeers) {
       if (checkedPeers.has(peerIp)) {
         console.log(`Peer ${peerIp} has already been checked for rootHash ${currentRootHash}. Skipping.`);
         continue;
