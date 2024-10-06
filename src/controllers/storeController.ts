@@ -198,3 +198,33 @@ export const getUserIpAddresses = (req: Request, res: Response): void => {
     });
   }
 };
+
+/**
+ * Pings the peer to measure latency.
+ * Responds with a simple success message for the PeerRanker to calculate latency.
+ */
+export const pingPeer = (req: Request, res: Response): void => {
+  res.status(200).send('pong');
+};
+
+/**
+ * Handles the upload of random data to measure bandwidth.
+ * Discards the incoming data and returns a success message once all data is received.
+ */
+export const uploadTest = (req: Request, res: Response): void => {
+  // Listen to the data event to consume the incoming data
+  req.on('data', (chunk) => {
+    // Discard the chunk of data (we are not saving it)
+  });
+
+  // When the upload is finished, respond with a success message
+  req.on('end', () => {
+    res.status(200).send('Upload complete');
+  });
+
+  // Handle potential errors during upload
+  req.on('error', (err) => {
+    console.error('Error during upload:', err);
+    res.status(500).send('Upload failed');
+  });
+};
