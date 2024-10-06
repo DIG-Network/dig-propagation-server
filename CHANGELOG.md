@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.117](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.116...v0.0.1-alpha.117) (2024-10-06)
+
+
+### Features
+
+* support hostnames in server coins ([67638d8](https://github.com/DIG-Network/dig-propagation-server/commit/67638d845bd87fd2823fafb88de2ae2a5b6ee9e8))
+
 ### [0.0.1-alpha.116](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.115...v0.0.1-alpha.116) (2024-10-06)
 
 ### [0.0.1-alpha.115](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.114...v0.0.1-alpha.115) (2024-10-06)
