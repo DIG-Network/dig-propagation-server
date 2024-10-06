@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.114](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.113...v0.0.1-alpha.114) (2024-10-06)
+
+
+### Features
+
+* add peer ranker to sync stores ([a21b4c0](https://github.com/DIG-Network/dig-propagation-server/commit/a21b4c066229bb0db565cd87a54d22da1c1395d1))
+
 ### [0.0.1-alpha.113](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.112...v0.0.1-alpha.113) (2024-10-06)
 
 
