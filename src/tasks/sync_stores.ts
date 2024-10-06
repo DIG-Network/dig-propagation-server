@@ -18,7 +18,7 @@ const STORE_PATH = path.join(getStorageLocation(), "stores");
 
 const mutex = new Mutex();
 
-const PUBLIC_IP_KEY = "publicIp";
+const PUBLIC_IP_KEY = "publicHost";
 const nconfManager = new NconfManager("config.json");
 
 // Map to track which peerIps have been checked for each rootHash

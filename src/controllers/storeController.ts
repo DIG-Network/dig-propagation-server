@@ -40,7 +40,7 @@ export const subscribeToStore = async (
 
     const nconfManager = new NconfManager("config.json");
     const publicIp: string | null | undefined =
-      await nconfManager.getConfigValue("publicIp");
+      await nconfManager.getConfigValue("publicHost");
 
     if (publicIp) {
       const serverCoin = new ServerCoin(storeId);
