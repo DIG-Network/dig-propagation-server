@@ -10,7 +10,7 @@ import {
   DataIntegrityTree,
   getFilePathFromSha256,
   Environment,
-  DigNetwork
+  DigNetwork,
 } from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
@@ -22,7 +22,7 @@ import Busboy from "busboy";
 import fsExtra from "fs-extra";
 import { HashingStream } from "../utils/HasingStream";
 import * as zlib from "zlib";
-import requestIp from 'request-ip';
+import requestIp from "request-ip";
 
 const digFolderPath = getStorageLocation();
 const streamPipeline = promisify(require("stream").pipeline);
@@ -127,7 +127,7 @@ async function merkleIntegrityCheck(
   if (Environment.DEBUG) {
     console.log("Integrity check result:", integrity);
   }
-  
+
   return integrity;
 }
 
@@ -698,7 +698,7 @@ export const commitUpload = async (
     if (session.roothash) {
       DigNetwork.pingNetworkOfUpdate(storeId, session.roothash);
     }
-    
+
     res.status(200).json({
       message: `Upload for DataStore ${storeId} under session ${sessionId} committed successfully.`,
     });
@@ -828,7 +828,11 @@ export const fetchFile = async (req: Request, res: Response): Promise<void> => {
     res.status(200);
 
     const clientIp = requestIp.getClientIp(req);
-    console.log(`Fetch Request from: ${clientIp}, StoreId: ${storeId}`);
+    console.log(
+      `Fetch Request from: ${clientIp}, StoreId: ${storeId}, DataPath: ${
+        dataPath.length > 10 ? "..." + dataPath.slice(-10) : dataPath
+      }`
+    );
 
     // Stream the file to the response
     const fileStream = fs.createReadStream(filePath);
