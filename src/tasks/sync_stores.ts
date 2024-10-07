@@ -52,11 +52,11 @@ const processPeer = async (peerIp: string, storeId: string, rootHash: string, ch
  * Clean the checkedPeersMap to retain only the current rootHash.
  * @param currentRootHash - The rootHash to retain in the map.
  */
-const cleanCheckedPeersMap = (currentRootHash: string): void => {
+const cleanCheckedPeersMap = (storeId: string, currentRootHash: string): void => {
   for (const [rootHash, _] of checkedPeersMap.entries()) {
     if (rootHash !== currentRootHash) {
       checkedPeersMap.delete(rootHash);
-      console.log(`Removed outdated rootHash ${rootHash} from checkedPeersMap.`);
+      console.log(`Removed outdated rootHash ${storeId}-${rootHash} from checkedPeersMap.`);
     }
   }
 };
@@ -82,7 +82,7 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
     console.log(`Current rootHash for store ${storeId}: ${currentRootHash}`);
 
     // Clean checkedPeersMap to only retain peers checked for the current rootHash
-    cleanCheckedPeersMap(currentRootHash);
+    cleanCheckedPeersMap(storeId, currentRootHash);
 
     // Initialize the set for the current rootHash if not present
     if (!checkedPeersMap.has(currentRootHash)) {
@@ -102,7 +102,6 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
       return;
     }
 
-    console.log(`Ranking peers based on latency and bandwidth...`);
     const peerRanker = new PeerRanker(peerIps);
     const rankedPeers = await peerRanker.rankPeers();
 
