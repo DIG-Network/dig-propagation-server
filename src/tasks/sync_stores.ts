@@ -1,5 +1,5 @@
 import fs from "fs";
-import path from 'path';
+import path from "path";
 import { SimpleIntervalJob, Task } from "toad-scheduler";
 import {
   getStoresList,
@@ -9,7 +9,7 @@ import {
   ServerCoin,
   DigPeer,
   withTimeout,
-  PeerRanker
+  PeerRanker,
 } from "@dignetwork/dig-sdk";
 import { Mutex } from "async-mutex";
 import { getStorageLocation } from "../utils/storage";
@@ -30,26 +30,27 @@ const checkedPeersMap: Map<string, Set<string>> = new Map();
  * @param rootHash - The current rootHash to check against.
  * @param checkedPeers - The set of peers already checked for the rootHash.
  */
-const processPeer = async (peerIp: string, storeId: string, rootHash: string, checkedPeers: Set<string>): Promise<void> => {
+const processPeer = async (
+  peerIp: string,
+  storeId: string,
+  rootHash: string,
+  checkedPeers: Set<string>
+): Promise<void> => {
   try {
     const digPeer = new DigPeer(peerIp, storeId);
-    const { storeExists, rootHashExists } = await withTimeout(digPeer.propagationServer.checkStoreExists(rootHash), 15000, `Dig Peer: ${peerIp} took to long to respond to head request`);
 
-    if (!storeExists) {
-      console.log(`Dig Peer ${peerIp} does not have store ${storeId}. Skipping...`);
-      return;
-    }
-
-    if (rootHashExists) {
-      console.log(`Dig Peer ${peerIp} already has rootHash ${rootHash}. Marking as checked.`);
-      checkedPeers.add(peerIp); // Mark as checked only if peer has the rootHash
-    } else {
-      console.log(`Dig Peer ${peerIp} does not have ${storeId}-${rootHash}. Pinging update.`);
-      await withTimeout(digPeer.propagationServer.pingUpdate(rootHash), 15000, `Dig Peer: ${peerIp} took to long to respond to ping request`);
-      // Do NOT mark as checked if peer lacks the rootHash
-    }
+    // Just ping the peer to update, if its already updated then itll mark it as updated
+    // for this root hash and wont check again, much better then pinging for each root hash for every peer
+    // before attempting this call.
+    await withTimeout(
+      digPeer.propagationServer.pingUpdate(rootHash),
+      15000,
+      `Dig Peer: ${peerIp} took to long to respond to ping request`
+    );
   } catch (error: any) {
-    console.error(`Error interacting with Dig Peer: ${peerIp}: ${error.message}`);
+    console.error(
+      `Error interacting with Dig Peer: ${peerIp}: ${error.message}`
+    );
   }
 };
 
@@ -57,11 +58,16 @@ const processPeer = async (peerIp: string, storeId: string, rootHash: string, ch
  * Clean the checkedPeersMap to retain only the current rootHash.
  * @param currentRootHash - The rootHash to retain in the map.
  */
-const cleanCheckedPeersMap = (storeId: string, currentRootHash: string): void => {
+const cleanCheckedPeersMap = (
+  storeId: string,
+  currentRootHash: string
+): void => {
   for (const [rootHash, _] of checkedPeersMap.entries()) {
     if (rootHash !== currentRootHash) {
       checkedPeersMap.delete(rootHash);
-      console.log(`Removed outdated rootHash ${storeId}-${rootHash} from checkedPeersMap.`);
+      console.log(
+        `Removed outdated rootHash ${storeId}-${rootHash} from checkedPeersMap.`
+      );
     }
   }
 };
@@ -71,13 +77,18 @@ const cleanCheckedPeersMap = (storeId: string, currentRootHash: string): void =>
  * @param storeId - The ID of the synced store.
  * @param serverCoin - The ServerCoin instance associated with the store.
  */
-const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promise<void> => {
+const handleSyncedStore = async (
+  storeId: string,
+  serverCoin: ServerCoin
+): Promise<void> => {
   try {
     const dataStore = await DataStore.from(storeId);
     const rootHistory = await dataStore.getRootHistory();
 
     if (rootHistory.length === 0) {
-      console.warn(`No root history found for store ${storeId}. Skipping peer checks.`);
+      console.warn(
+        `No root history found for store ${storeId}. Skipping peer checks.`
+      );
       return;
     }
 
@@ -92,7 +103,9 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
     // Initialize the set for the current rootHash if not present
     if (!checkedPeersMap.has(currentRootHash)) {
       checkedPeersMap.set(currentRootHash, new Set<string>());
-      console.log(`Initialized checkedPeersMap for current rootHash ${currentRootHash}.`);
+      console.log(
+        `Initialized checkedPeersMap for current rootHash ${currentRootHash}.`
+      );
     }
 
     const checkedPeers = checkedPeersMap.get(currentRootHash)!;
@@ -100,10 +113,11 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
     // Pass the checkedPeers as the blocklist to getActiveEpochPeers
     const blocklist = Array.from(checkedPeers);
     const peerIps: string[] = await serverCoin.getActiveEpochPeers(blocklist);
-    
 
     if (peerIps.length === 0) {
-      console.log(`No new peers to process for rootHash ${currentRootHash} in store ${storeId}.`);
+      console.log(
+        `No new peers to process for rootHash ${currentRootHash} in store ${storeId}.`
+      );
       return;
     }
 
@@ -115,15 +129,18 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
     // Process peers one at a time sequentially, starting with the best-ranked peers
     for (const { ip: peerIp } of rankedPeers) {
       if (checkedPeers.has(peerIp)) {
-        console.log(`Peer ${peerIp} has already been checked for rootHash ${currentRootHash}. Skipping.`);
+        console.log(
+          `Peer ${peerIp} has already been checked for rootHash ${currentRootHash}. Skipping.`
+        );
         continue;
       }
 
       await processPeer(peerIp, storeId, currentRootHash, checkedPeers);
     }
 
-    console.log(`Completed processing peers for rootHash ${currentRootHash} in store ${storeId}.`);
-
+    console.log(
+      `Completed processing peers for rootHash ${currentRootHash} in store ${storeId}.`
+    );
   } catch (error: any) {
     console.error(`Error handling synced store ${storeId}: ${error.message}`);
   }
@@ -134,7 +151,10 @@ const handleSyncedStore = async (storeId: string, serverCoin: ServerCoin): Promi
  * @param storeId - The ID of the store to synchronize.
  * @param serverCoin - The ServerCoin instance associated with the store.
  */
-const synchronizeStore = async (storeId: string, serverCoin: ServerCoin): Promise<void> => {
+const synchronizeStore = async (
+  storeId: string,
+  serverCoin: ServerCoin
+): Promise<void> => {
   console.log(`Starting synchronization for store ${storeId}...`);
 
   const isSynced = await isStoreSynced(storeId);
@@ -143,7 +163,9 @@ const synchronizeStore = async (storeId: string, serverCoin: ServerCoin): Promis
     console.log(`Store ${storeId} is synced. Proceeding with peer checks.`);
     await handleSyncedStore(storeId, serverCoin);
   } else {
-    console.log(`Store ${storeId} is not synced. Initiating synchronization from peers.`);
+    console.log(
+      `Store ${storeId} is not synced. Initiating synchronization from peers.`
+    );
     await syncStoreFromNetwork(storeId);
   }
 };
@@ -161,12 +183,16 @@ const isStoreSynced = async (storeId: string): Promise<boolean> => {
   const storePath = path.join(STORE_PATH, storeId);
 
   if (!fs.existsSync(storePath)) {
-    console.log(`Store path not found for store ${storeId}. Considering it as not synced.`);
+    console.log(
+      `Store path not found for store ${storeId}. Considering it as not synced.`
+    );
     return false;
   }
 
   // Check if any entry in rootHistory has synced = false
-  const hasUnsyncedEntries = rootHistory.some(entry => entry.synced === false);
+  const hasUnsyncedEntries = rootHistory.some(
+    (entry) => entry.synced === false
+  );
 
   if (hasUnsyncedEntries) {
     console.log(`Store ${storeId} has unsynced entries in root history.`);
@@ -266,7 +292,9 @@ const task = new Task("sync-stores", async () => {
           // Finalize synchronization
           await finalizeStoreSync(storeId);
         } catch (error: any) {
-          console.error(`Failed to synchronize store ${storeId}: ${error.message}`);
+          console.error(
+            `Failed to synchronize store ${storeId}: ${error.message}`
+          );
         }
       }
 
@@ -282,7 +310,6 @@ const task = new Task("sync-stores", async () => {
     console.log("Sync-stores task is already running. Skipping this run.");
   }
 });
-
 
 // Schedule the task to run every 60 seconds, starting immediately
 const job = new SimpleIntervalJob(
