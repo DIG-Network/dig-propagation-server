@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.131](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.130...v0.0.1-alpha.131) (2024-10-08)
+
+
+### Bug Fixes
+
+* check if store has roothash ([b277263](https://github.com/DIG-Network/dig-propagation-server/commit/b2772639f6159a9b13389f66d890ce2895fdbb31))
+* check if store has roothash ([f920566](https://github.com/DIG-Network/dig-propagation-server/commit/f920566ddf2c2ea5d898fdfda5be05836b4abef7))
+
 ### [0.0.1-alpha.130](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.129...v0.0.1-alpha.130) (2024-10-08)
 
 ### [0.0.1-alpha.129](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.128...v0.0.1-alpha.129) (2024-10-07)
