@@ -33,9 +33,14 @@ const checkedPeersMap: Map<string, Set<string>> = new Map();
 const processPeer = async (peerIp: string, storeId: string, rootHash: string, checkedPeers: Set<string>): Promise<void> => {
   try {
     const digPeer = new DigPeer(peerIp, storeId);
-    const hasRootHash = await withTimeout(digPeer.contentServer.hasRootHash(rootHash), 15000, `Dig Peer: ${peerIp} took to long to respond to head request`);
+    const { storeExists, rootHashExists } = await withTimeout(digPeer.propagationServer.checkStoreExists(rootHash), 15000, `Dig Peer: ${peerIp} took to long to respond to head request`);
 
-    if (hasRootHash) {
+    if (!storeExists) {
+      console.log(`Dig Peer ${peerIp} does not have store ${storeId}. Skipping...`);
+      return;
+    }
+
+    if (rootHashExists) {
       console.log(`Dig Peer ${peerIp} already has rootHash ${rootHash}. Marking as checked.`);
       checkedPeers.add(peerIp); // Mark as checked only if peer has the rootHash
     } else {
