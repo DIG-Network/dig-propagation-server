@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.133](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.132...v0.0.1-alpha.133) (2024-10-10)
+
+
+### Features
+
+* update sdk ([8cbd893](https://github.com/DIG-Network/dig-propagation-server/commit/8cbd89328b8a46c08f352d982cbfc7f18ca4f0e8))
+
 ### [0.0.1-alpha.132](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.131...v0.0.1-alpha.132) (2024-10-08)
 
 ### [0.0.1-alpha.131](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.130...v0.0.1-alpha.131) (2024-10-08)
