@@ -157,16 +157,20 @@ const synchronizeStore = async (
 ): Promise<void> => {
   console.log(`Starting synchronization for store ${storeId}...`);
 
-  const isSynced = await isStoreSynced(storeId);
+  // Store might have been deleted so just check its still there
+  // otherwise risk bringing the store back
+  if (fs.existsSync(path.join(STORE_PATH, storeId))) {
+    const isSynced = await isStoreSynced(storeId);
 
-  if (isSynced) {
-    console.log(`Store ${storeId} is synced. Proceeding with peer checks.`);
-    await handleSyncedStore(storeId, serverCoin);
-  } else {
-    console.log(
-      `Store ${storeId} is not synced. Initiating synchronization from peers.`
-    );
-    await syncStoreFromNetwork(storeId);
+    if (isSynced) {
+      console.log(`Store ${storeId} is synced. Proceeding with peer checks.`);
+      await handleSyncedStore(storeId, serverCoin);
+    } else {
+      console.log(
+        `Store ${storeId} is not synced. Initiating synchronization from peers.`
+      );
+      await syncStoreFromNetwork(storeId);
+    }
   }
 };
 
