@@ -411,6 +411,8 @@ export const generateFileNonce = async (
       throw new HttpError(404, "Upload session not found.");
     }
 
+    session.resetTtl();
+
     // File path in the session's temporary directory
     const tmpFilePath = path.join(session.tmpDir, filename);
     const mainFilePath = path.join(digFolderPath, "stores", storeId, filename);
@@ -429,6 +431,7 @@ export const generateFileNonce = async (
 
     // Return 200 status with no body, as per HEAD request specification
     res.status(200).end();
+    session.resetTtl();
   } catch (error: any) {
     console.error("Error generating nonce:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -468,6 +471,14 @@ export const uploadFile = async (
       throw new HttpError(401, "Invalid nonce.");
     }
 
+    // Check if the session exists in the cache and reset the TTL if found
+    const session = sessionCache[sessionId];
+    if (!session) {
+      throw new HttpError(404, "Session not found or expired.");
+    }
+
+    session.resetTtl();
+
     // Validate the key ownership signature using the nonce
     const isSignatureValid = await Wallet.verifyKeyOwnershipSignature(
       nonce,
@@ -477,12 +488,6 @@ export const uploadFile = async (
 
     if (!isSignatureValid) {
       throw new HttpError(401, "Invalid key ownership signature.");
-    }
-
-    // Check if the session exists in the cache and reset the TTL if found
-    const session = sessionCache[sessionId];
-    if (!session) {
-      throw new HttpError(404, "Session not found or expired.");
     }
 
     // Check if the user has write permissions to the store
@@ -500,6 +505,8 @@ export const uploadFile = async (
     if (!isOwner) {
       throw new HttpError(403, "You do not have write access to this store.");
     }
+
+    session.resetTtl();
 
     // Use Busboy to handle file uploads
     const bb = Busboy({ headers: req.headers });
