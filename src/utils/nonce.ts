@@ -2,7 +2,7 @@ import crypto from "crypto";
 import NodeCache from "node-cache";
 
 // Create a new NodeCache instance with a 5-minute TTL for nonces
-const nonceCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 60 }); // Check every minute for expired entries
+const nonceCache = new NodeCache({ stdTTL: 10 * 60  });
 
 /**
  * Function to generate and store nonce in NodeCache.

@@ -70,6 +70,31 @@ function createSessionWithTTL(): string {
   return sessionId;
 }
 
+const withIntervalCallback = <T>(
+  promise: Promise<T>,
+  callback: () => void
+): Promise<T> => {
+  const intervalTime = 30000; // 30 seconds in milliseconds
+
+  let intervalId: NodeJS.Timeout;
+
+  // Start the interval that calls the callback every 30 seconds
+  intervalId = setInterval(() => {
+    callback();
+  }, intervalTime);
+
+  // Return a new promise that clears the interval when the original promise settles
+  return promise
+    .then((result) => {
+      clearInterval(intervalId);
+      return result;
+    })
+    .catch((error) => {
+      clearInterval(intervalId);
+      throw error;
+    });
+};
+
 /**
  * Cleans up the session directory after the TTL expires or the upload is complete.
  *
@@ -411,6 +436,8 @@ export const generateFileNonce = async (
       throw new HttpError(404, "Upload session not found.");
     }
 
+    session.resetTtl();
+
     // File path in the session's temporary directory
     const tmpFilePath = path.join(session.tmpDir, filename);
     const mainFilePath = path.join(digFolderPath, "stores", storeId, filename);
@@ -429,6 +456,7 @@ export const generateFileNonce = async (
 
     // Return 200 status with no body, as per HEAD request specification
     res.status(200).end();
+    session.resetTtl();
   } catch (error: any) {
     console.error("Error generating nonce:", error);
     const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -468,6 +496,14 @@ export const uploadFile = async (
       throw new HttpError(401, "Invalid nonce.");
     }
 
+    // Check if the session exists in the cache and reset the TTL if found
+    const session = sessionCache[sessionId];
+    if (!session) {
+      throw new HttpError(404, "Session not found or expired.");
+    }
+
+    session.resetTtl();
+
     // Validate the key ownership signature using the nonce
     const isSignatureValid = await Wallet.verifyKeyOwnershipSignature(
       nonce,
@@ -479,20 +515,15 @@ export const uploadFile = async (
       throw new HttpError(401, "Invalid key ownership signature.");
     }
 
-    // Check if the session exists in the cache and reset the TTL if found
-    const session = sessionCache[sessionId];
-    if (!session) {
-      throw new HttpError(404, "Session not found or expired.");
-    }
-
     // Check if the user has write permissions to the store
     const cacheKey = `${publicKey}_${storeId}`;
     let isOwner = ownerCache.get<boolean>(cacheKey);
 
     if (isOwner === undefined) {
       const dataStore = new DataStore(storeId, { disableInitialize: true });
-      isOwner = await dataStore.hasMetaWritePermissions(
-        Buffer.from(publicKey, "hex")
+      isOwner = await withIntervalCallback(
+        dataStore.hasMetaWritePermissions(Buffer.from(publicKey, "hex")),
+        session.resetTtl
       );
       ownerCache.set(cacheKey, isOwner);
     }
@@ -500,6 +531,8 @@ export const uploadFile = async (
     if (!isOwner) {
       throw new HttpError(403, "You do not have write access to this store.");
     }
+
+    session.resetTtl();
 
     // Use Busboy to handle file uploads
     const bb = Busboy({ headers: req.headers });
@@ -568,12 +601,15 @@ export const uploadFile = async (
 
           if (filename.includes("data/")) {
             if (
-              !(await merkleIntegrityCheck(
-                rootHashDatPath,
-                session.tmpDir,
-                filename,
-                session.roothash || "",
-                sha256Digest
+              !(await withIntervalCallback(
+                merkleIntegrityCheck(
+                  rootHashDatPath,
+                  session.tmpDir,
+                  filename,
+                  session.roothash || "",
+                  sha256Digest
+                ),
+                session.resetTtl
               ))
             ) {
               cleanupSession(sessionId);
@@ -650,6 +686,7 @@ export const commitUpload = async (
     const datFileContent = JSON.parse(fs.readFileSync(datFilePath, "utf-8"));
 
     for (const [fileKey, fileData] of Object.entries(datFileContent.files)) {
+      session.resetTtl();
       const dataPath = getFilePathFromSha256(
         datFileContent.files[fileKey].sha256,
         "data"
@@ -684,10 +721,13 @@ export const commitUpload = async (
     }
 
     // Merge the session upload directory with the final directory
-    fsExtra.copySync(sessionUploadDir, finalDir, {
-      overwrite: false, // Prevents overwriting existing files
-      errorOnExist: false, // No error if file already exists
-    });
+    await withIntervalCallback(
+      fsExtra.copy(sessionUploadDir, finalDir, {
+        overwrite: false, // Prevents overwriting existing files
+        errorOnExist: false, // No error if file already exists
+      }),
+      session.resetTtl
+    );
 
     // Regenerate the manifest file based on the upload
     const dataStore = new DataStore(storeId, { disableInitialize: true });

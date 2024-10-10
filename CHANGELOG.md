@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.134](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.133...v0.0.1-alpha.134) (2024-10-10)
+
+
+### Features
+
+* add promise interval to resetttl every 30 seconds while waiting for promises ([013305c](https://github.com/DIG-Network/dig-propagation-server/commit/013305cd1d0c424b0693722954bab029a8ead612))
+
+
+### Bug Fixes
+
+* upload session ttl ([6d12f18](https://github.com/DIG-Network/dig-propagation-server/commit/6d12f18425f185ad91c8b3d2922a42e37b10aab6))
+
+### [0.0.1-alpha.133](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.132...v0.0.1-alpha.133) (2024-10-10)
+
+
+### Features
+
+* update sdk ([8cbd893](https://github.com/DIG-Network/dig-propagation-server/commit/8cbd89328b8a46c08f352d982cbfc7f18ca4f0e8))
+
 ### [0.0.1-alpha.132](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.131...v0.0.1-alpha.132) (2024-10-08)
 
 ### [0.0.1-alpha.131](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.130...v0.0.1-alpha.131) (2024-10-08)
