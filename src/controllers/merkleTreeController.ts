@@ -70,6 +70,31 @@ function createSessionWithTTL(): string {
   return sessionId;
 }
 
+const withIntervalCallback = <T>(
+  promise: Promise<T>,
+  callback: () => void
+): Promise<T> => {
+  const intervalTime = 30000; // 30 seconds in milliseconds
+
+  let intervalId: NodeJS.Timeout;
+
+  // Start the interval that calls the callback every 30 seconds
+  intervalId = setInterval(() => {
+    callback();
+  }, intervalTime);
+
+  // Return a new promise that clears the interval when the original promise settles
+  return promise
+    .then((result) => {
+      clearInterval(intervalId);
+      return result;
+    })
+    .catch((error) => {
+      clearInterval(intervalId);
+      throw error;
+    });
+};
+
 /**
  * Cleans up the session directory after the TTL expires or the upload is complete.
  *
@@ -496,8 +521,9 @@ export const uploadFile = async (
 
     if (isOwner === undefined) {
       const dataStore = new DataStore(storeId, { disableInitialize: true });
-      isOwner = await dataStore.hasMetaWritePermissions(
-        Buffer.from(publicKey, "hex")
+      isOwner = await withIntervalCallback(
+        dataStore.hasMetaWritePermissions(Buffer.from(publicKey, "hex")),
+        session.resetTtl
       );
       ownerCache.set(cacheKey, isOwner);
     }
@@ -575,12 +601,15 @@ export const uploadFile = async (
 
           if (filename.includes("data/")) {
             if (
-              !(await merkleIntegrityCheck(
-                rootHashDatPath,
-                session.tmpDir,
-                filename,
-                session.roothash || "",
-                sha256Digest
+              !(await withIntervalCallback(
+                merkleIntegrityCheck(
+                  rootHashDatPath,
+                  session.tmpDir,
+                  filename,
+                  session.roothash || "",
+                  sha256Digest
+                ),
+                session.resetTtl
               ))
             ) {
               cleanupSession(sessionId);
@@ -657,6 +686,7 @@ export const commitUpload = async (
     const datFileContent = JSON.parse(fs.readFileSync(datFilePath, "utf-8"));
 
     for (const [fileKey, fileData] of Object.entries(datFileContent.files)) {
+      session.resetTtl();
       const dataPath = getFilePathFromSha256(
         datFileContent.files[fileKey].sha256,
         "data"
@@ -691,10 +721,13 @@ export const commitUpload = async (
     }
 
     // Merge the session upload directory with the final directory
-    fsExtra.copySync(sessionUploadDir, finalDir, {
-      overwrite: false, // Prevents overwriting existing files
-      errorOnExist: false, // No error if file already exists
-    });
+    await withIntervalCallback(
+      fsExtra.copy(sessionUploadDir, finalDir, {
+        overwrite: false, // Prevents overwriting existing files
+        errorOnExist: false, // No error if file already exists
+      }),
+      session.resetTtl
+    );
 
     // Regenerate the manifest file based on the upload
     const dataStore = new DataStore(storeId, { disableInitialize: true });
