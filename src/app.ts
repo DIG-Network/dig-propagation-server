@@ -5,6 +5,7 @@ import path from "path";
 import { storeRoutes } from "./routes";
 import { Tls } from "@dignetwork/datalayer-driver";
 import requestIp from "request-ip";
+import Gun from 'gun';
 
 const caCertPath = path.join(__dirname, "ssl", "ca", "chia_ca.crt");
 const caKeyPath = path.join(__dirname, "ssl", "ca", "chia_ca.key");
@@ -51,5 +52,11 @@ const serverOptions = {
 // Create the HTTPS server
 const server = https.createServer(serverOptions, app);
 
+const gun = Gun({
+  web: server, // Attach Gun.js to the existing HTTPS server
+  // No need to specify 'peers' or 'file' since we're not synchronizing data
+});
+
+
 // Export both the app and the server
-export { app, server, PORT };
+export { app, server, gun, PORT };
