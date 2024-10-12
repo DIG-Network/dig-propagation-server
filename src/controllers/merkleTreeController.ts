@@ -50,7 +50,11 @@ const ownerCache = new NodeCache({ stdTTL: ownerCacheTTL });
  * @returns {string} sessionId - A unique session identifier.
  */
 function createSessionWithTTL(): string {
-  const tmpDirInfo = tmp.dirSync({ unsafeCleanup: true });
+  try {
+    const tmpDirInfo = tmp.dirSync({ unsafeCleanup: true });
+  } catch (error) {
+    console.error(`Error creating temporary directory: ${error}`);
+  }
   const sessionId = uuidv4();
 
   const resetTtl = () => {
@@ -103,13 +107,24 @@ const withIntervalCallback = <T>(
 function cleanupSession(sessionId: string): void {
   const session = sessionCache[sessionId];
   if (session) {
-    session.cleanup(); // Remove the temporary directory
+    try {
+      fs.rmSync(session.tmpDir, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Error removing temporary directory: ${error}`);
+      // Try to remove the directory again after a 1-second delay
+      setTimeout(() => {
+        try {
+          fs.rmSync(session.tmpDir, { recursive: true, force: true });
+        } catch (error) {
+          console.error(`Error removing temporary directory (retry): ${error}`);
+        }
+      }, 1000);
+    }
     clearTimeout(session.timer); // Clear the timeout
     delete sessionCache[sessionId]; // Remove the session from the cache
     console.log(`Session ${sessionId} cleaned up.`);
   }
 }
-
 async function merkleIntegrityCheck(
   treePath: string,
   tmpDir: string,
