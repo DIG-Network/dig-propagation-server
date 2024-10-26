@@ -2,6 +2,8 @@ name: Build and Push Docker
 
 on:
   push:
+    branches:
+      - 'testing'
     tags:
       - '**'
 
@@ -66,7 +68,7 @@ jobs:
 
       - name: Build and Push Docker Images
         run: |
-          if [[ "${TAGNAME}" == *"alpha"* ]]; then
+          if [[ "${GITHUB_REF}" == refs/heads/testing ]]; then
             docker buildx build \
               --platform linux/amd64,linux/arm64 \
               -t ${{ vars.DOCKER_NAMESPACE }}/${{ env.PROJECT_NAME }}:staging \
