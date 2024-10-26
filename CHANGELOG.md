@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.135](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.134...v0.0.1-alpha.135) (2024-10-26)
+
+
+### Features
+
+* incorporate DigCache ([94e55de](https://github.com/DIG-Network/dig-propagation-server/commit/94e55de6956c2623d9ff56b9936bdc292db35b1c))
+
 ### [0.0.1-alpha.134](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.133...v0.0.1-alpha.134) (2024-10-10)
 
 
