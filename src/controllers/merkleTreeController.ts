@@ -11,12 +11,12 @@ import {
   getFilePathFromSha256,
   Environment,
   DigNetwork,
-  DigCache,
 } from "@dignetwork/dig-sdk";
 import { promisify } from "util";
 import { getStorageLocation } from "../utils/storage";
 import tmp from "tmp";
 import { PassThrough } from "stream";
+import NodeCache from "node-cache";
 import { generateNonce, validateNonce } from "../utils/nonce";
 import Busboy from "busboy";
 import fsExtra from "fs-extra";
@@ -41,7 +41,7 @@ const sessionCache: {
     resetTtl: () => void;
   };
 } = {};
-const ownerCache = new DigCache({ stdTTL: ownerCacheTTL });
+const ownerCache = new NodeCache({ stdTTL: ownerCacheTTL });
 
 /**
  * Creates a session directory with custom TTL logic. Each session has a TTL that can be reset
@@ -450,7 +450,7 @@ export const generateFileNonce = async (
     // If file does not exist, generate a nonce for the file
     if (!fileExists) {
       const nonceKey = `${storeId}_${sessionId}_${filename}`;
-      const nonce = await generateNonce(nonceKey);
+      const nonce = generateNonce(nonceKey);
       res.setHeader("x-nonce", nonce);
     }
 
@@ -492,7 +492,7 @@ export const uploadFile = async (
       );
     }
 
-    if (!(await validateNonce(`${storeId}_${sessionId}_${filename}`, nonce))) {
+    if (!validateNonce(`${storeId}_${sessionId}_${filename}`, nonce)) {
       throw new HttpError(401, "Invalid nonce.");
     }
 
@@ -517,7 +517,7 @@ export const uploadFile = async (
 
     // Check if the user has write permissions to the store
     const cacheKey = `${publicKey}_${storeId}`;
-    let isOwner = await ownerCache.get<boolean>(cacheKey);
+    let isOwner = ownerCache.get<boolean>(cacheKey);
 
     if (isOwner === undefined) {
       const dataStore = new DataStore(storeId, { disableInitialize: true });
