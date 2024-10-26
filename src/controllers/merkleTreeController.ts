@@ -50,11 +50,17 @@ const ownerCache = new NodeCache({ stdTTL: ownerCacheTTL });
  * @returns {string} sessionId - A unique session identifier.
  */
 function createSessionWithTTL(): string {
+  let tmpDirInfo;
   try {
-    const tmpDirInfo = tmp.dirSync({ unsafeCleanup: true });
+    tmpDirInfo = tmp.dirSync({ unsafeCleanup: true });
   } catch (error) {
     console.error(`Error creating temporary directory: ${error}`);
   }
+
+  if (!tmpDirInfo) {
+    throw new HttpError(500, "Failed to create temporary directory.");
+  }
+
   const sessionId = uuidv4();
 
   const resetTtl = () => {

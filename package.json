@@ -1,6 +1,6 @@
 {
   "name": "dig-propagation-server",
-  "version": "0.0.1-alpha.136",
+  "version": "0.0.1-alpha.138",
   "description": "",
   "type": "commonjs",
   "main": "./dist/index.js",
@@ -15,7 +15,8 @@
     "dev": "set DIG_USERNAME=1234&& set DIG_PASSWORD=1234&& ts-node src/index.ts",
     "server": "ts-node src/server.ts",
     "test": "mocha -r ts-node/register tests.ts",
-    "prepare-release": "bash ./scripts/release.sh"
+    "prepare-release": "bash ./scripts/release.sh",
+    "docker:build:local": "docker build -t dig-propagation-server:local ."
   },
   "author": "",
   "license": "ISC",
