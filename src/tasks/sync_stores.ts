@@ -169,7 +169,9 @@ const synchronizeStore = async (
       console.log(
         `Store ${storeId} is not synced. Initiating synchronization from peers.`
       );
-      await syncStoreFromNetwork(storeId);
+      if (fs.existsSync(path.join(STORE_PATH, storeId))) {
+        await syncStoreFromNetwork(storeId);
+      }
     }
   }
 };
