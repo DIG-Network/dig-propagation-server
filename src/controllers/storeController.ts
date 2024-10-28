@@ -9,6 +9,7 @@ import {
   DigPeer,
   ServerCoin,
   NconfManager,
+  StoreMonitorRegistry
 } from "@dignetwork/dig-sdk";
 import { getStorageLocation } from "../utils/storage";
 import requestIp from 'request-ip';
@@ -66,10 +67,16 @@ export const unsubscribeToStore = async (
   try {
     const { storeId } = req.body;
 
+    const storeMonitorRegistryInstance = StoreMonitorRegistry.getInstance();
+    storeMonitorRegistryInstance.unregisterStore(storeId);
+
     const pathToStore = path.resolve(getStorageLocation(), "stores", storeId);
 
     // Remove the store directory
-    setTimeout(() => fs.rmdirSync(pathToStore, { recursive: true }), 0);
+    setTimeout(() => {
+      fs.rmdirSync(pathToStore, { recursive: true });
+      storeMonitorRegistryInstance.unregisterStore(storeId);
+    }, 0);
 
     res.status(200).json({ message: `Unsubscribed to store ${storeId}` });
   } catch (error) {
@@ -82,6 +89,7 @@ export const unsubscribeToStore = async (
     });
   }
 };
+
 
 /**
  * Sync the store data from the requestor's IP
