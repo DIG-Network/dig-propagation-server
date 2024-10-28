@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.140](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.139...v0.0.1-alpha.140) (2024-10-28)
+
+
+### Bug Fixes
+
+* unregister store monitor on unsubscribe ([6fcf46f](https://github.com/DIG-Network/dig-propagation-server/commit/6fcf46f240df4dc29f122dd3e1cf0ebc77003e48))
+
 ### [0.0.1-alpha.139](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.138...v0.0.1-alpha.139) (2024-10-26)
 
 ### [0.0.1-alpha.138](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.137...v0.0.1-alpha.138) (2024-10-26)
