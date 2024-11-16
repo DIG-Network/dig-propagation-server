@@ -256,10 +256,8 @@ const task = new Task("sync-stores", async () => {
     try {
       console.log("Starting sync-stores task...");
 
-      const storeList = getStoresList()
-      // temp fix for a store that is causing issues
-      .filter((store) => store !== "a3f1b2c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f80");
-      
+      const storeList = getStoresList();
+
       let publicIp: string | null | undefined;
 
       try {
