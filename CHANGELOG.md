@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1-alpha.141](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.140...v0.0.1-alpha.141) (2024-11-16)
+
+
+### Bug Fixes
+
+* temp fix for issue store ([200c152](https://github.com/DIG-Network/dig-propagation-server/commit/200c152d9e2cf2857c965e9b7355085017f7d76e))
+
 ### [0.0.1-alpha.140](https://github.com/DIG-Network/dig-propagation-server/compare/v0.0.1-alpha.139...v0.0.1-alpha.140) (2024-10-28)
 
 
