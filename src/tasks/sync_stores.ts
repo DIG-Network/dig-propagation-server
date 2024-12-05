@@ -296,6 +296,10 @@ const task = new Task("sync-stores", async () => {
             await synchronizeStore(storeId, new ServerCoin(storeId));
           }
 
+          if (storeList.length === 0) {
+            console.warn("Currently subscribed to no stores, nothing to sync.");
+          }
+
           // Finalize synchronization
           await finalizeStoreSync(storeId);
         } catch (error: any) {
